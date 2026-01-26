@@ -1,0 +1,134 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+
+body, html {
+  font-family: 'Inter', sans-serif;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-sidebar: var(--sidebar);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: #537533;
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  
+  /* CoagriSan Brand Colors */
+  --brand-primary: #537533;
+  --brand-primary-50: #f4f6f2;
+  --brand-primary-100: #e6ead9;
+  --brand-primary-200: #d0d8b8;
+  --brand-primary-300: #b4c491;
+  --brand-primary-400: #9bb06e;
+  --brand-primary-500: #537533;
+  --brand-primary-600: #4a6a2e;
+  --brand-primary-700: #3e5926;
+  --brand-primary-800: #334821;
+  --brand-primary-900: #2a391d;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  /* CoagriSan Brand Utilities */
+  .bg-brand-primary { background-color: var(--brand-primary); }
+  .bg-brand-primary-50 { background-color: var(--brand-primary-50); }
+  .bg-brand-primary-100 { background-color: var(--brand-primary-100); }
+  .bg-brand-primary-200 { background-color: var(--brand-primary-200); }
+  .bg-brand-primary-300 { background-color: var(--brand-primary-300); }
+  .bg-brand-primary-400 { background-color: var(--brand-primary-400); }
+  .bg-brand-primary-500 { background-color: var(--brand-primary-500); }
+  .bg-brand-primary-600 { background-color: var(--brand-primary-600); }
+  .bg-brand-primary-700 { background-color: var(--brand-primary-700); }
+  .bg-brand-primary-800 { background-color: var(--brand-primary-800); }
+  .bg-brand-primary-900 { background-color: var(--brand-primary-900); }
+  
+  .text-brand-primary { color: var(--brand-primary); }
+  .text-brand-primary-600 { color: var(--brand-primary-600); }
+  .text-brand-primary-700 { color: var(--brand-primary-700); }
+  .text-brand-primary-800 { color: var(--brand-primary-800); }
+  
+  .border-brand-primary { border-color: var(--brand-primary); }
+  .border-brand-primary-100 { border-color: var(--brand-primary-50); }
+  .border-brand-primary-200 { border-color: var(--brand-primary-200); }
+  .border-brand-primary-300 { border-color: var(--brand-primary-300); }
+  .border-brand-primary-500 { border-color: var(--brand-primary-500); }
+  
+  .ring-brand-primary { --tw-ring-color: var(--brand-primary); }
+  .ring-brand-primary-500 { --tw-ring-color: var(--brand-primary-500); }
+  
+  .focus\:border-brand-primary:focus { border-color: var(--brand-primary); }
+  .focus\:ring-brand-primary:focus { --tw-ring-color: var(--brand-primary); }
+  .hover\:bg-brand-primary-600:hover { background-color: var(--brand-primary-600); }
+  .hover\:bg-brand-primary-700:hover { background-color: var(--brand-primary-700); }
+  
+  /* Gradientes personalizados */
+  .bg-gradient-brand {
+    background: linear-gradient(to right, var(--brand-primary-800), var(--brand-primary-700));
+  }
+}
+
+button {
+  cursor: pointer;
+}
+
+button[data-slot="dialog-close"] svg {
+  width: 24px;
+  height: 24px;
+}
+
+.dialog-close-btn-white button[data-slot="dialog-close"] {
+  color: white !important;
+}
+
+div[role="dialog"] {
+  max-height: 95vh;
+  overflow-y: auto;
+}

@@ -1,0 +1,293 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum status {
+  active
+  inactive
+}
+
+enum role {
+  admin
+  manager
+  employee
+}
+
+model user {
+  id         String    @id @default(uuid())
+  wp_id      Int?      @unique
+  wp_name    String
+  wp_email   String    @unique
+  role       role      @default(employee)
+  status     status    @default(active)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  partner_id String?
+  employee   employee?
+  employees  employee[] @relation("PartnerEmployees")
+  profiles   profile[] @relation("PartnerProfiles")
+  schedules  schedule[] @relation("PartnerSchedules")
+  locations  location[] @relation("PartnerLocations")
+  incidences incidence[] @relation("PartnerIncidences")
+  terminals  terminal[] @relation("PartnerTerminals")
+
+  @@index([wp_id])
+  @@index([wp_email])
+}
+
+
+model employee {
+  id                String              @id @default(uuid())
+  card_id           String?
+  first_name        String
+  last_name         String?
+  dni               String?
+  alias             String?
+  birth_date        DateTime?
+  address           String?
+  postal_code       String?
+  province          String?
+  population        String?
+  phone_number      String?
+  mobile_number     String?
+  email             String?             @unique
+  status            status              @default(active)
+  user_id           String              @unique
+  partner_id        String
+  created_at        DateTime            @default(now())
+  updated_at        DateTime            @updatedAt
+  profile_id        String?
+  schedule_id       String?
+  location_id       String?
+  is_responsible    Boolean             @default(false)
+  schedule          schedule?           @relation(fields: [schedule_id], references: [id])
+  location          location?           @relation(fields: [location_id], references: [id])
+  profile           profile?            @relation(fields: [profile_id], references: [id])
+  user              user                @relation(fields: [user_id], references: [id])
+  partner           user                @relation("PartnerEmployees", fields: [partner_id], references: [id])
+  employee_shift    employee_shift[]
+  incidence         incidence[]
+  employee_turnover employee_turnover[]
+  task_tracker      task_tracker[]
+
+  @@index([partner_id])
+}
+
+model employee_turnover {
+  id          String        @id @default(uuid())
+  date        DateTime
+  type        turnover_type
+  employee_id String
+  employee    employee      @relation(fields: [employee_id], references: [id])
+  created_at  DateTime      @default(now())
+  updated_at  DateTime      @updatedAt
+
+  @@index([employee_id])
+}
+
+enum turnover_type {
+  hiring
+  departure
+}
+
+model profile {
+  id         String      @id @default(uuid())
+  name       String
+  status     status      @default(active)
+  partner_id String
+  employee   employee[]
+  partner    user        @relation("PartnerProfiles", fields: [partner_id], references: [id])
+  created_at DateTime    @default(now())
+  updated_at DateTime    @updatedAt
+  incidence  incidence[]
+
+  @@index([partner_id])
+}
+
+model schedule {
+  id          String             @id @default(uuid())
+  name        String
+  description String?
+  partner_id  String
+  created_at  DateTime           @default(now())
+  updated_at  DateTime           @updatedAt
+  employee    employee[]
+  sessions    schedule_session[]
+  days        schedule_days[]
+  partner     user               @relation("PartnerSchedules", fields: [partner_id], references: [id])
+
+  @@index([partner_id])
+}
+
+model schedule_days {
+  id          String       @id @default(uuid())
+  day         schedule_day
+  schedule_id String
+  schedule    schedule     @relation(fields: [schedule_id], references: [id])
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+
+  @@index([schedule_id])
+}
+
+enum schedule_day {
+  monday
+  tuesday
+  wednesday
+  thursday
+  friday
+  saturday
+  sunday
+}
+
+model schedule_session {
+  id               String           @id @default(uuid())
+  start_time       DateTime
+  end_time         DateTime
+  total_time       Int
+  shift_type       shift_type
+  has_break        Boolean          @default(false)
+  break_start_time DateTime?
+  break_end_time   DateTime?
+  schedule_id      String
+  employee_shift   employee_shift[]
+  schedule         schedule         @relation(fields: [schedule_id], references: [id])
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+
+  @@index([schedule_id])
+}
+
+enum shift_type {
+  morning
+  afternoon
+  night
+}
+
+model employee_shift {
+  id                  String                 @id @default(uuid())
+  date                DateTime
+  employee_id         String
+  employee            employee               @relation(fields: [employee_id], references: [id])
+  created_at          DateTime               @default(now())
+  updated_at          DateTime               @updatedAt
+  schedule_session_id String?
+  shift_clock         employee_shift_clock[]
+  schedule_session    schedule_session?      @relation(fields: [schedule_session_id], references: [id])
+
+  @@index([employee_id])
+  @@index([date])
+}
+
+model employee_shift_clock {
+  id                String         @id @default(uuid())
+  time              DateTime
+  terminal_id       String
+  employee_shift_id String
+  status            employee_shift_clock_status @default(pending)
+  created_at        DateTime       @default(now())
+  updated_at        DateTime       @updatedAt
+  terminal          terminal       @relation(fields: [terminal_id], references: [id])
+  employee_shift    employee_shift @relation(fields: [employee_shift_id], references: [id], onDelete: Cascade)
+
+  @@index([employee_shift_id])
+  @@index([terminal_id])
+}
+
+enum employee_shift_clock_status {
+  pending
+  approved
+}
+
+model incidence {
+  id             String         @id @default(uuid())
+  start_date     DateTime       @default(now())
+  end_date       DateTime       @default(now())
+  duration_hours Int?
+  type           incidence_type
+  description    String?
+  all_day        Boolean        @default(false)
+  paid           Boolean        @default(false)
+  is_global      Boolean        @default(false)
+  created_at     DateTime       @default(now())
+  updated_at     DateTime       @updatedAt
+  partner_id     String
+  profiles       profile[]
+  employees      employee[]
+  partner        user           @relation("PartnerIncidences", fields: [partner_id], references: [id])
+
+  @@index([start_date])
+  @@index([end_date])
+  @@index([partner_id])
+}
+
+enum incidence_type {
+  holiday
+  festive
+  absence
+  medical_leave
+  personal_leave
+  sindical_leave
+  other
+}
+
+model location {
+  id         String     @id @default(uuid())
+  name       String
+  status     status     @default(active)
+  employee   employee[]
+  partner_id String
+  partner    user       @relation("PartnerLocations", fields: [partner_id], references: [id])
+  created_at DateTime   @default(now())
+  updated_at DateTime   @updatedAt
+
+  @@index([partner_id])
+}
+
+model terminal {
+  id                   String                 @id @default(uuid())
+  external_id          String                 @unique
+  name                 String
+  connection_status    connection_status      @default(disconnected)
+  partner_id           String
+  partner              user                   @relation("PartnerTerminals", fields: [partner_id], references: [id])
+  created_at           DateTime               @default(now())
+  updated_at           DateTime               @updatedAt
+  employee_shift_clock employee_shift_clock[]
+
+  @@index([external_id])
+}
+
+enum connection_status {
+  connected
+  failed
+  disconnected
+}
+
+model task_tracker {
+  id          String              @id @default(uuid())
+  name        String
+  description String?
+  status      task_tracker_status @default(pending)
+  start_time  DateTime?
+  end_time    DateTime?
+  duration    Int?
+  created_at  DateTime            @default(now())
+  updated_at  DateTime            @updatedAt
+  employee_id String
+  employee    employee            @relation(fields: [employee_id], references: [id])
+
+  @@index([employee_id])
+}
+
+enum task_tracker_status {
+  pending
+  running
+  completed
+  paused
+}
