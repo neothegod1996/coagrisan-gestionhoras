@@ -23,6 +23,10 @@ export class QueryReportDto {
   end_date?: string;
 
   @IsOptional()
+  @IsString()
+  partner_id?: string;
+
+  @IsOptional()
   @IsBoolean()
   @Transform(({ value }) => value === 'true' || value === true)
   limit_to_8_hours?: boolean = false;

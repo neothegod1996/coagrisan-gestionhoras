@@ -16,7 +16,17 @@ export class ReportsController {
   @Roles(role.admin, role.manager)
   @Get()
   async findAll(@Res() res: Response, @Query() query: QueryReportDto, @Req() req: RequestWithUser) {
-    const reports = await this.reportsService.findAll(query, req.user.partner_id);
+    // const reports = await this.reportsService.findAll(query, req.user.partner_id);
+    const partnerId = req.user?.partner_id ?? query.partner_id;
+
+    if (!partnerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'partner_id is required',
+      });
+    }
+
+    const reports = await this.reportsService.findAll(query, partnerId);
     return res.status(200).json({
       data: reports,
       success: true,
