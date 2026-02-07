@@ -148,6 +148,9 @@ export class ReportsService {
           },
           include: {
             shift_clock: {
+              where: {
+                status: 'approved',
+              },
               orderBy: {
                 time: 'asc',
               },
