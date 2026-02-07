@@ -195,6 +195,8 @@ model employee_shift_clock {
   terminal          terminal       @relation(fields: [terminal_id], references: [id])
   employee_shift    employee_shift @relation(fields: [employee_shift_id], references: [id], onDelete: Cascade)
 
+  task_tracker_links task_tracker_shift_clock[]
+
   @@index([employee_shift_id])
   @@index([terminal_id])
 }
@@ -282,6 +284,8 @@ model task_tracker {
   employee_id String
   employee    employee            @relation(fields: [employee_id], references: [id])
 
+  task_tracker_shift_clocks task_tracker_shift_clock[]
+
   @@index([employee_id])
 }
 
@@ -291,3 +295,17 @@ enum task_tracker_status {
   completed
   paused
 }
+
+model task_tracker_shift_clock {
+  id                       String               @id @default(uuid())
+  task_tracker_id          String
+  employee_shift_clock_id  String
+  created_at               DateTime             @default(now())
+
+  task_tracker             task_tracker         @relation(fields: [task_tracker_id], references: [id], onDelete: Cascade)
+  employee_shift_clock     employee_shift_clock @relation(fields: [employee_shift_clock_id], references: [id], onDelete: Cascade)
+
+  @@index([task_tracker_id])
+  @@index([employee_shift_clock_id])
+}
+
