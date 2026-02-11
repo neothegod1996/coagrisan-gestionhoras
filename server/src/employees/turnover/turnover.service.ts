@@ -9,12 +9,12 @@ import * as dayjs from 'dayjs';
 @Injectable()
 export class TurnoverService {
   constructor(private prisma: PrismaService) {}
-  
+
   async create(body: CreateTurnoverDto, user: User) {
-    let where: any = { 
+    let where: any = {
       id: body.employee_id,
     };
-    
+
     const employee = await this.prisma.employee.findUnique({
       where,
     });
@@ -58,16 +58,43 @@ export class TurnoverService {
     let where: any = {};
     if(employee_id) where.employee_id = employee_id;
     if(type) where.type = type;
-    if(date) where.date = { gte: dayjs(date).startOf('day').toDate(), lte: dayjs(date).endOf('day').toDate() };
-    if(search) where.employee = {
-      OR: [
-        { id: { contains: search } },
+    if (date) {
+      where.date = {
+        gte: dayjs(date).startOf('day').toDate(),
+        lte: dayjs(date).endOf('day').toDate(),
+      };
+    }
+
+    if (user.partner_id) {
+      where.employee = {
+        OR: [
+          { partner_id: user.partner_id },
+          { user_id: user.partner_id },
+        ],
+      };
+    }
+
+    if (search && search.trim().length > 0) {
+      const searchConditions = [
         { card_id: { contains: search } },
         { dni: { contains: search } },
         { first_name: { contains: search } },
         { last_name: { contains: search } },
-      ],
-    };
+      ];
+
+      if (where.employee) {
+        where.employee = {
+          AND: [
+            where.employee,
+            { OR: searchConditions },
+          ],
+        };
+      } else {
+        where.employee = {
+          OR: searchConditions,
+        };
+      }
+    }
 
     const [turnovers, count] = await this.prisma.$transaction([
       this.prisma.employee_turnover.findMany({
