@@ -44,7 +44,7 @@ export default function Home() {
               <Clock className="w-8 h-8 text-white" />
             </div> */}
             <div className={'flex items-center justify-center mb-5'}>
-              <Image src="/logo-transparent.png?v=2" alt="Coagrisan" width={200} height={200} />
+              <Image src="/logo-transparent.png" alt="Coagrisan" width={200} height={200} />
             </div>
             <h1 className="text-3xl font-semibold mb-2">
               Sistema de Fichajes Coagrisan
