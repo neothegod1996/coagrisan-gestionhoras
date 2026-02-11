@@ -11,7 +11,7 @@ export class EmployeesService {
   constructor(private prisma: PrismaService) { }
 
   async create(body: CreateEmployeeDto, user: User) {
-    if(user.role === role.admin && !body.partner_id) {
+    if (user.role === role.admin && !body.partner_id) {
       throw new HttpException('"partner_id" field is required', HttpStatus.BAD_REQUEST);
     }
     const partner_id = user.role === role.admin ? body.partner_id : user.partner_id;
@@ -57,8 +57,14 @@ export class EmployeesService {
     const { page, limit, location, profile, search, partner_id: partner_id_query } = query;
     const partner_id = user.role === role.admin ? partner_id_query : user.partner_id;
     const skip = (page - 1) * limit;
-    let where: any = { partner_id };
-    if (partner_id) where.partner_id = partner_id;
+    let where: any = {};
+    if (partner_id) {
+      where.OR = [
+        { partner_id: partner_id },
+        { user_id: partner_id },
+      ];
+    }
+
     if (location) where.location_id = location;
     if (profile) where.profile_id = profile;
     if (search) {
@@ -78,7 +84,10 @@ export class EmployeesService {
         });
       }
 
-      where.OR = searchConditions;
+      where.AND = [
+        ...(where.AND || []),
+        { OR: searchConditions },
+      ];
     }
     const [employees, count] = await this.prisma.$transaction([
       this.prisma.employee.findMany({
