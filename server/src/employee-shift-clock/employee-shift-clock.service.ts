@@ -27,6 +27,18 @@ export class EmployeeShiftClockService {
     if (date) where.employee_shift.date = { gte: dayjs(date).startOf('day').toDate(), lte: dayjs(date).endOf('day').toDate() };
     if (status && !isEmployee) where.status = status;
     // if (partner_id) where.terminal.partner_id = partner_id;
+    if (partner_id && !isEmployee) {
+      where.employee_shift.employee = {
+        OR: [
+          { partner_id: partner_id },
+          { user_id: user.id }
+        ]
+      };
+    } else {
+      where.employee_shift.employee = {
+        partner_id: partner_id
+      };
+    }
     const [shiftClock, total] = await this.prisma.$transaction([
       this.prisma.employee_shift_clock.findMany({
         where,
