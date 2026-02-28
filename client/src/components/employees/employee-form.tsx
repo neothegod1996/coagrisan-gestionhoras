@@ -86,6 +86,7 @@ export default function EmployeeForm({
     if (isOpen && !employee.data?.id) {
       form.reset({
         card_id: '',
+        device_pin: '',
         first_name: '',
         last_name: '',
         dni: '',
@@ -122,6 +123,7 @@ export default function EmployeeForm({
 
       form.reset({
         card_id: data?.card_id || '',
+        device_pin: data?.device_pin || '',
         first_name: data?.first_name || '',
         last_name: data?.last_name || '',
         dni: data?.dni || '',
@@ -261,6 +263,25 @@ export default function EmployeeForm({
                     </FormItem>
                   )}
                 />
+
+                <FormField
+                  control={form.control}
+                  name="device_pin"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-slate-700">PIN Dispositivo (ZKTeco)</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Ej: 2 o 1234"
+                          {...field}
+                          className="h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-4">
                   <FormField
                     control={form.control}
@@ -532,23 +553,23 @@ export default function EmployeeForm({
                   <h3 className="text-lg font-semibold text-slate-800">Información Laboral</h3>
                 </div>
 
-                  <FormField
-                    control={form.control}
-                    name="is_responsible"
-                    render={({ field }) => (
-                      <FormItem className={'flex'}>
-                        <FormLabel className="text-sm font-medium text-slate-700">Es responsable</FormLabel>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          // className="h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <FormField
+                  control={form.control}
+                  name="is_responsible"
+                  render={({ field }) => (
+                    <FormItem className={'flex'}>
+                      <FormLabel className="text-sm font-medium text-slate-700">Es responsable</FormLabel>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        // className="h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-4">
                   <FormField

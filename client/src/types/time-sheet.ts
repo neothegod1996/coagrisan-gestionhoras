@@ -4,6 +4,7 @@ export interface TimeSheet {
   id: string;
   time: string;
   status: TimeSheetStatus;
+  session_id: string;
   terminal: {
     id: string;
     name: string;

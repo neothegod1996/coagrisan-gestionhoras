@@ -17,5 +17,6 @@ export const employeeFormSchema = z.object({
     profile_id: z.string().min(1, "El perfil es obligatorio"),
     schedule_id: z.string().min(1, "El horario es obligatorio"),
     location_id: z.string().min(1, "La ubicación es obligatoria"),
+    device_pin: z.string().optional(),
     is_responsible: z.boolean().optional(),
 });

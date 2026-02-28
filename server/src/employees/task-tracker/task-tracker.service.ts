@@ -90,6 +90,7 @@ export class TaskTrackerService {
           terminal_id: terminal.id,
           time: startTime,
           status: 'pending',
+          session_id: taskTracker.id,
         },
       });
 
@@ -266,6 +267,7 @@ export class TaskTrackerService {
           terminal_id: terminal.id,
           time: taskEndTime,
           status: 'pending',
+          session_id: task.id,
         },
       });
 

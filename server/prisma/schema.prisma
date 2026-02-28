@@ -18,6 +18,11 @@ enum role {
   employee
 }
 
+enum user_type {
+  user
+  farm
+}
+
 model user {
   id         String    @id @default(uuid())
   wp_id      Int?      @unique
@@ -35,6 +40,7 @@ model user {
   locations  location[] @relation("PartnerLocations")
   incidences incidence[] @relation("PartnerIncidences")
   terminals  terminal[] @relation("PartnerTerminals")
+  user_type  user_type @default(user)
 
   @@index([wp_id])
   @@index([wp_email])
@@ -44,6 +50,7 @@ model user {
 model employee {
   id                String              @id @default(uuid())
   card_id           String?
+  device_pin        String?
   first_name        String
   last_name         String?
   dni               String?
@@ -194,6 +201,7 @@ model employee_shift_clock {
   updated_at        DateTime       @updatedAt
   terminal          terminal       @relation(fields: [terminal_id], references: [id])
   employee_shift    employee_shift @relation(fields: [employee_shift_id], references: [id], onDelete: Cascade)
+  session_id        String         @default("default")
 
   task_tracker_links task_tracker_shift_clock[]
 

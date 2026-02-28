@@ -3,7 +3,7 @@ import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { PrismaService } from 'src/prisma.service';
 import { User } from 'src/types';
-import { role } from '@prisma/client';
+import { role, user_type } from '@prisma/client';
 import { PaginationEmployeeDto } from './dto/pagination-employee.dto';
 
 @Injectable()
@@ -54,16 +54,28 @@ export class EmployeesService {
   }
 
   async findAll(query: PaginationEmployeeDto, user: User) {
-    const { page, limit, location, profile, search, partner_id: partner_id_query } = query;
-    const partner_id = user.role === role.admin ? partner_id_query : user.partner_id;
+    const { page, limit, location, profile, search } = query;
     const skip = (page - 1) * limit;
     let where: any = {};
-    if (partner_id) {
-      where.OR = [
-        { partner_id: partner_id },
-        { user_id: partner_id },
-      ];
+
+    if (user.role === role.employee) {
+      where.user_id = user.id;
+    } else {
+      // Consultamos el partner_id fresco desde la DB
+      const userDb = await this.prisma.user.findUnique({
+        where: { id: user.id },
+        select: { partner_id: true }
+      });
+
+      console.log('User role:', user.role);
+      console.log('User partner_id from DB:', userDb?.partner_id);
+
+      if (userDb?.partner_id) {
+        where.partner_id = userDb.partner_id;
+      }
     }
+
+    console.log('Initial where clause:', where);
 
     if (location) where.location_id = location;
     if (profile) where.profile_id = profile;
@@ -83,12 +95,23 @@ export class EmployeesService {
           ]
         });
       }
-
       where.AND = [
         ...(where.AND || []),
         { OR: searchConditions },
       ];
     }
+
+    if (where.partner_id) {
+      where.user = {
+        partner_id: where.partner_id,
+        user_type: user_type.user,
+        ...(user.role === role.manager && { role: { not: role.admin } })
+      };
+      delete where.partner_id;
+    }
+
+    console.log('Where clause:', where);
+
     const [employees, count] = await this.prisma.$transaction([
       this.prisma.employee.findMany({
         where,
@@ -100,28 +123,14 @@ export class EmployeesService {
           last_name: true,
           dni: true,
           email: true,
-          profile: {
-            select: {
-              id: true,
-              name: true
-            }
-          },
-          location: {
-            select: {
-              id: true,
-              name: true
-            }
-          },
-          schedule: {
-            select: {
-              id: true,
-              name: true
-            }
-          },
+          profile: { select: { id: true, name: true } },
+          location: { select: { id: true, name: true } },
+          schedule: { select: { id: true, name: true } },
         }
       }),
       this.prisma.employee.count({ where }),
     ]);
+
     return {
       data: employees,
       total: count,
