@@ -16,6 +16,7 @@ import { ReportsModule } from './reports/reports.module';
 import { TaskTrackerModule } from './employees/task-tracker/task-tracker.module';
 import { PartnersModule } from './partners/partners.module';
 import { EmployeeShiftClockModule } from './employee-shift-clock/employee-shift-clock.module';
+import { EmployeeShiftClockModuleById } from './employee-shift-clock-by-id/employee-shift-clock-by-id.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { EmployeeShiftClockModule } from './employee-shift-clock/employee-shift-
     ProfilesModule,
     EmployeesModule,
     EmployeeShiftsModule,
+    EmployeeShiftClockModuleById,
     IncidencesModule,
     TerminalsModule,
     ReportsModule,
@@ -52,4 +54,4 @@ import { EmployeeShiftClockModule } from './employee-shift-clock/employee-shift-
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }

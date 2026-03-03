@@ -81,6 +81,26 @@ export async function updateTimeSheet(taskTrackerId: string, startId: string, en
     }
 }
 
+export async function updateTimeSheetById(id: string, data: TimeSheetFormData) {
+    const token = await getAccessToken();
+    try {
+        const response = await axios.request<TimeSheetByIdResponse>({
+            method: 'PUT',
+            url: `/api/time-sheet-by-id/${id}`,
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+            data,
+            params: {
+                partner_id: localStorage.getItem('partner_id'),
+            },
+        });
+        return response.data;
+    } catch (error) {
+        return null;
+    }
+}
+
 export async function deleteTimeSheet(taskTrackerId: string, startId: string, endId: string) {
     const token = await getAccessToken();
     try {

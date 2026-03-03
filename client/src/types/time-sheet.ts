@@ -2,6 +2,7 @@ import { PaginationResponse, Params, Response, Status } from ".";
 
 export interface TimeSheet {
   id: string;
+  task_tracker_id: string;
   time: string;
   status: TimeSheetStatus;
   session_id: string;

@@ -23,7 +23,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { RequestHandler } from "@/types";
-import { createTimeSheet, getTimeSheet, updateTimeSheet } from "@/services/time-sheet";
+import { createTimeSheet, getTimeSheet, updateTimeSheet, updateTimeSheetById } from "@/services/time-sheet";
 import { getEmployees } from "@/services/employee";
 import { getTerminals } from "@/services/terminal";
 import toast from "react-hot-toast";
@@ -51,6 +51,7 @@ export default function TimeSheetForm({
   const form = useForm<TimeSheetFormValues>({
     resolver: zodResolver(timeSheetFormSchema),
     defaultValues: {
+      task_tracker_id: "",
       employee_id: "",
       time: "",
       terminal_id: "",
@@ -61,6 +62,7 @@ export default function TimeSheetForm({
   useEffect(() => {
     if (isOpen && !timeSheet.data?.id) {
       form.reset({
+        task_tracker_id:"",
         employee_id: '',
         time: '',
         terminal_id: '',
@@ -81,6 +83,7 @@ export default function TimeSheetForm({
       const { data } = res || {};
       setTimeSheet({ data: data || null, loading: false });
       form.reset({
+        task_tracker_id: data?.task_tracker_id || '',
         employee_id: data?.employee_shift?.employee?.id || '',
         time: data?.time || '',
         terminal_id: data?.terminal?.id || '',
@@ -113,7 +116,7 @@ export default function TimeSheetForm({
     setIsSubmitting(true);
     try {
       if (time_sheet_id) {
-        await updateTimeSheet(time_sheet_id, values);
+        await updateTimeSheetById(time_sheet_id, values);
       } else {
         await createTimeSheet(values);
       }

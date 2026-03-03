@@ -301,7 +301,7 @@ export default function TimeSheetList() {
                               <AlertDialogFooter>
                                 <AlertDialogCancel className="rounded-md">Cancelar</AlertDialogCancel>
                                 <AlertDialogAction
-                                  onClick={() => handleDeleteTimeSheet(item.start?.id, item.end?.id)}
+                                  onClick={() => handleDeleteTimeSheet(item.task_tracker_id, item.start?.id, item.end?.id)}
                                   className="rounded-md bg-red-600 hover:bg-red-700"
                                 >
                                   Eliminar
