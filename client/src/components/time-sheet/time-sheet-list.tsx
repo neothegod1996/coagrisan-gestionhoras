@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, CheckCircle, Clock, ArrowLeft, CircleAlert, Edit, Trash2 } from "lucide-react";
+import { Search, CheckCircle, Clock, ArrowLeft, CircleAlert, Edit, Trash2, Plus } from "lucide-react";
 import { TimeSheet, TimeSheetFilters } from "@/types/time-sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,7 @@ import { Employee } from "@/types/employee";
 import RingLoading from "../loading/Ring";
 import toast from "react-hot-toast";
 import IncidenceForm from "../calendar/incidence-form";
+import TimeSheetForm from "./time-sheet-form";
 
 interface EditForm {
   start_time: string;
@@ -44,6 +45,7 @@ interface EditTarget {
   taskTrackerId: string;
   startId: string;
   endId: string;
+  employeeId: string;
   employeeName: string;
   currentStartTime: string;
   currentEndTime: string;
@@ -65,6 +67,9 @@ export default function TimeSheetList() {
   const [editForm, setEditForm] = useState<EditForm>({ start_time: '', end_time: '', status: 'pending' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showIncidenceForm, setShowIncidenceForm] = useState<boolean>(false);
+
+  const [showTimeSheetForm, setShowTimeSheetForm] = useState(false);
+  const [timeSheetFormId, setTimeSheetFormId] = useState<string | null>(null);
 
   const handleGetTimeSheets = async (filters: TimeSheetFilters) => {
     setTimeSheets(prev => ({ ...prev, loading: true }));
@@ -102,24 +107,6 @@ export default function TimeSheetList() {
     setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
   };
 
-  const handleOpenEdit = (item: any) => {
-    console.log("Editando item:", item);
-    setEditTarget({
-      taskTrackerId: item.task_tracker_id,
-      startId: item.start?.id,
-      endId: item.end?.id,
-      employeeName: `${item.employee.first_name} ${item.employee.last_name || ''}`.trim(),
-      currentStartTime: item.start?.time || '',
-      currentEndTime: item.end?.time || '',
-      currentStatus: item.start?.status || 'pending',
-    });
-    setEditForm({
-      start_time: item.start?.time ? new Date(item.start.time).toISOString().slice(0, 16) : '',
-      end_time: item.end?.time ? new Date(item.end.time).toISOString().slice(0, 16) : '',
-      status: item.start?.status || 'pending',
-    });
-  };
-
   const handleUpdateTimeSheet = async () => {
     if (!editTarget) return;
     setIsSubmitting(true);
@@ -134,7 +121,7 @@ export default function TimeSheetList() {
         const [date, time] = localDateString.split("T");
         return new Date(`${date}T${time}:00Z`).toISOString();
       };
-      
+
       editForm.start_time = toUTCISOString(editForm.start_time);
       editForm.end_time = toUTCISOString(editForm.end_time);
       await updateTimeSheet(editTarget.taskTrackerId, editTarget.startId, editTarget.endId, editForm);
@@ -172,6 +159,19 @@ export default function TimeSheetList() {
     year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
   });
 
+  const handleOpenEdit = (item: any) => {
+    setEditTarget({
+      taskTrackerId: item.task_tracker_id,
+      startId: item.start?.id,
+      endId: item.end?.id,
+      employeeId: item.employee.id,
+      employeeName: `${item.employee.first_name} ${item.employee.last_name || ''}`.trim(),
+      currentStartTime: item.start?.time || '',
+      currentEndTime: item.end?.time || '',
+      currentStatus: item.start?.status || 'pending',
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -188,6 +188,12 @@ export default function TimeSheetList() {
           </div>
           <Button onClick={() => setShowIncidenceForm(true)} className="px-6 py-3 h-11 font-medium bg-brand-primary hover:bg-brand-primary-600 text-white border-0">
             <CircleAlert className="w-4 h-4 mr-2" /> Nueva Incidencia
+          </Button>
+          <Button
+            onClick={() => { setTimeSheetFormId(null); setShowTimeSheetForm(true); }}
+            className="px-6 py-3 h-11 font-medium bg-white text-brand-primary hover:bg-slate-100 border-0"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Nuevo Registro
           </Button>
         </div>
       </div>
@@ -339,53 +345,12 @@ export default function TimeSheetList() {
       </Card>
 
       {/* Modal de edición */}
-      <Dialog open={!!editTarget} onOpenChange={() => setEditTarget(null)}>
-        <DialogContent className="max-w-md rounded-lg">
-          <DialogHeader>
-            <DialogTitle>Editar Registro — {editTarget?.employeeName}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Hora de Inicio</Label>
-              <Input
-                type="datetime-local"
-                value={editForm.start_time}
-                onChange={(e) => setEditForm(prev => ({ ...prev, start_time: e.target.value }))}
-                className="h-10 border-slate-300"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Hora de Fin</Label>
-              <Input
-                type="datetime-local"
-                value={editForm.end_time}
-                onChange={(e) => setEditForm(prev => ({ ...prev, end_time: e.target.value }))}
-                className="h-10 border-slate-300"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Estado</Label>
-              <Select value={editForm.status} onValueChange={(v) => setEditForm(prev => ({ ...prev, status: v }))}>
-                <SelectTrigger className="h-10 border-slate-300">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pendiente</SelectItem>
-                  <SelectItem value="approved">Aprobado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setEditTarget(null)} disabled={isSubmitting} className="rounded-md">
-              Cancelar
-            </Button>
-            <Button onClick={handleUpdateTimeSheet} disabled={isSubmitting} className="rounded-md bg-brand-primary hover:bg-brand-primary-700 text-white">
-              {isSubmitting ? "Guardando..." : "Guardar cambios"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TimeSheetForm
+        isOpen={showTimeSheetForm || !!editTarget}
+        onClose={() => { setShowTimeSheetForm(false); setEditTarget(null); }}
+        refetch={() => handleGetTimeSheets(filters)}
+        editTarget={editTarget}
+      />
 
       <IncidenceForm isOpen={showIncidenceForm} incidence_id={null} onClose={() => setShowIncidenceForm(false)} refetch={() => null} />
     </div>

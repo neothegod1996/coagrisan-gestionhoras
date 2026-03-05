@@ -61,21 +61,32 @@ export class EmployeesService {
     if (user.role === role.employee) {
       where.user_id = user.id;
     } else {
-      // Consultamos el partner_id fresco desde la DB
       const userDb = await this.prisma.user.findUnique({
         where: { id: user.id },
         select: { partner_id: true }
       });
 
-      console.log('User role:', user.role);
-      console.log('User partner_id from DB:', userDb?.partner_id);
-
       if (userDb?.partner_id) {
-        where.partner_id = userDb.partner_id;
+
+        if (user.role === role.manager) {
+          // Buscamos los users que tengan el mismo partner_id
+          const partnerUsers = await this.prisma.user.findMany({
+            where: {
+              partner_id: userDb.partner_id,
+              user_type: user_type.user,
+              role: { not: role.admin }
+            },
+            select: { id: true }
+          });
+          const userIds = partnerUsers.map(u => u.id);
+          where.user_id = { in: userIds };
+        } else {
+          // Admin
+          where.partner_id = userDb.partner_id;
+        }
       }
     }
 
-    console.log('Initial where clause:', where);
 
     if (location) where.location_id = location;
     if (profile) where.profile_id = profile;

@@ -76,4 +76,20 @@ export class EmployeeShiftClockController {
       message: 'Employee shift clock deleted successfully',
     });
   }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(role.admin, role.manager)
+  @Post()
+  async createNewRecord(
+    @Body() body: { employee_id: string; start_time: string; end_time: string; status: string },
+    @Req() req: RequestWithUser,
+    @Res() res: Response
+  ) {
+    const result = await this.employeeShiftClockService.createNewRecord(req.user, body as any);
+    return res.status(201).json({
+      data: result,
+      success: true,
+      message: 'Record created successfully',
+    });
+  }
 }

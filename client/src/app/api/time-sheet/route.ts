@@ -30,16 +30,13 @@ export async function POST(request: NextRequest) {
         const response = await axios.request({
             method: 'POST',
             url: `${process.env.API_URL}/api/shift-clock`,
-            data: {
-                ...body,
-                partner_id: params.get('partner_id'),
-            },
+            data: body,
             headers: {
                 Authorization: request.headers.get('authorization')
-            }
+            },
+            params: { partner_id: params.get('partner_id') }
         });
-        const status = response.status;
-        return NextResponse.json(response.data, { status });
+        return NextResponse.json(response.data, { status: response.status });
     } catch (error: any) {
         const response = error?.response?.data || DEFAULT_RESPONSE.ERROR;
         const status = error?.response?.status || 500;

@@ -3,7 +3,7 @@ import { QueryEmployeeShiftClockDto } from './dto/query-employee-shift-clock.dto
 import { User } from 'src/types';
 import { PrismaService } from 'src/prisma.service';
 import * as dayjs from 'dayjs';
-import { employee_shift_clock, employee_shift_clock_status, role, task_tracker_status } from '@prisma/client';
+import { employee_shift_clock, employee_shift_clock_status, role, user_type, task_tracker_status } from '@prisma/client';
 
 @Injectable()
 export class EmployeeShiftClockService {
@@ -20,12 +20,37 @@ export class EmployeeShiftClockService {
     if (isEmployee) {
       taskTrackerWhere.employee_id = user.employee?.id;
     } else {
-      if (employee_id_query) taskTrackerWhere.employee_id = employee_id_query;
-      /*if (partner_id) {
-        taskTrackerWhere.employee = {
-          user: { partner_id }
-        };
-      }*/
+      if (employee_id_query) {
+        taskTrackerWhere.employee_id = employee_id_query;
+      } else {
+        // Consultamos el partner_id fresco desde la DB
+        const userDb = await this.prisma.user.findUnique({
+          where: { id: user.id },
+          select: { partner_id: true }
+        });
+
+        if (userDb?.partner_id) {
+          // Buscamos los users que tengan ese partner_id
+          const partnerUsers = await this.prisma.user.findMany({
+            where: {
+              partner_id: userDb.partner_id,
+              user_type: user_type.user,
+              ...(user.role === role.manager && { role: { not: role.admin } })
+            },
+            select: { id: true }
+          });
+
+          const userIds = partnerUsers.map(u => u.id);
+
+          // Buscamos los employees de esos users
+          const partnerEmployees = await this.prisma.employee.findMany({
+            where: { user_id: { in: userIds } },
+            select: { id: true }
+          });
+
+          taskTrackerWhere.employee_id = { in: partnerEmployees.map(e => e.id) };
+        }
+      }
     }
 
     if (date) {
@@ -112,40 +137,111 @@ export class EmployeeShiftClockService {
       orderBy: { time: 'asc' }
     });
 
-    const data = taskTrackers.map((tracker) => {
+    const data = await Promise.all(taskTrackers.map(async (tracker) => {
 
-      // Buscar shift correspondiente por fecha
-      const shift = employeeShifts.find(s =>
-        s.employee_id === tracker.employee.id &&
-        dayjs(s.date).isSame(tracker.created_at, 'day')
-      );
+      // Primero intentamos por session_id (registros nuevos)
+      const clocksBySession = shiftClocks.filter(clock => clock.session_id === tracker.id);
 
-      if (!shift) {
+      if (clocksBySession.length > 0) {
+        const start = clocksBySession[0] || null;
+        const end = clocksBySession.length > 1 ? clocksBySession[clocksBySession.length - 1] : null;
         return {
           task_tracker_id: tracker.id,
           name: tracker.name,
           status: tracker.status,
           employee: tracker.employee,
-          start: null,
-          end: null
+          start,
+          end,
         };
       }
 
-      const clocks = shiftClocks.filter(clock =>
-        clock.employee_shift_id === shift.id
+      // Fallback: lógica vieja por tiempo
+      const shift = employeeShifts.find(s =>
+        s.employee_id === tracker.employee.id &&
+        dayjs(s.date).isSame(tracker.start_time, 'day')
       );
-      const isNear = (a: Date, b: Date, seconds = 0) =>
-        Math.abs(dayjs(a).diff(dayjs(b), 'second')) <= seconds;
 
-      // Match start por created_at
-      const start = clocks.find(clock =>
-        isNear(clock.created_at, tracker.created_at)
-      ) || null;
+      const isNear = (a: Date, b: Date) =>
+        Math.abs(dayjs(a).diff(dayjs(b), 'second')) <= 30;
 
-      // Match end por updated_at
-      const end = clocks.find(clock =>
-        isNear(clock.created_at, tracker.updated_at)
-      ) || null;
+      let start = shift
+        ? shiftClocks.find(clock =>
+          clock.employee_shift_id === shift.id &&
+          isNear(clock.time ?? clock.created_at, tracker.start_time ?? tracker.created_at)
+        ) || null
+        : null;
+
+      let end = shift
+        ? shiftClocks.find(clock =>
+          clock.employee_shift_id === shift.id &&
+          isNear(clock.time ?? clock.created_at, tracker.end_time ?? tracker.updated_at)
+        ) || null
+        : null;
+
+      // Si no encontramos start pero el tracker tiene start_time, creamos el clock
+      // Si no encontramos start pero el tracker tiene start_time, creamos el clock
+      if (!start && tracker.start_time) {
+        const created = await this.create(null as any, tracker.id);
+        // Buscamos con el select correcto para tener terminal
+        start = await this.prisma.employee_shift_clock.findUnique({
+          where: { id: created.id },
+          select: {
+            id: true,
+            time: true,
+            status: true,
+            session_id: true,
+            employee_shift_id: true,
+            created_at: true,
+            updated_at: true,
+            terminal: { select: { id: true, name: true } }
+          }
+        });
+      }
+
+      // Si no encontramos end pero el tracker tiene end_time, creamos el clock
+      if (!end && tracker.end_time) {
+        const existingStart = start || await this.prisma.employee_shift_clock.findFirst({
+          where: { session_id: tracker.id },
+          orderBy: { time: 'asc' },
+          select: {
+            id: true,
+            time: true,
+            status: true,
+            session_id: true,
+            employee_shift_id: true,
+            terminal_id: true,
+            created_at: true,
+            updated_at: true,
+            terminal: { select: { id: true, name: true } }
+          }
+        });
+
+        if (existingStart && 'terminal_id' in existingStart) {
+          const created = await this.prisma.employee_shift_clock.create({
+            data: {
+              employee_shift_id: existingStart.employee_shift_id,
+              terminal_id: (existingStart as any).terminal_id,
+              time: new Date(tracker.end_time),
+              status: employee_shift_clock_status.pending,
+              session_id: tracker.id,
+              created_at: new Date(tracker.end_time),
+            },
+          });
+          end = await this.prisma.employee_shift_clock.findUnique({
+            where: { id: created.id },
+            select: {
+              id: true,
+              time: true,
+              status: true,
+              session_id: true,
+              employee_shift_id: true,
+              created_at: true,
+              updated_at: true,
+              terminal: { select: { id: true, name: true } }
+            }
+          });
+        }
+      }
 
       return {
         task_tracker_id: tracker.id,
@@ -155,7 +251,7 @@ export class EmployeeShiftClockService {
         start,
         end,
       };
-    });
+    }));
 
     return {
       data,
@@ -203,7 +299,7 @@ export class EmployeeShiftClockService {
       );
     }
 
-    if(!startId) {
+    if (!startId) {
       const created = await this.create(user, taskTrackerId);
       startId = created.id;
     }
@@ -492,6 +588,99 @@ export class EmployeeShiftClockService {
       });
 
       return shiftClock;
+    });
+  }
+
+  async createNewRecord(user: User, body: {
+    employee_id: string;
+    start_time: string;
+    end_time: string;
+    status: 'pending' | 'approved';
+    notes?: string;
+  }) {
+    const { employee_id, start_time, end_time, status, notes } = body;
+    const startTime = new Date(start_time);
+    const endTime = new Date(end_time);
+
+    const taskStatus = status === 'approved' ? 'completed' : 'running';
+    const clockStatus = status === 'approved' ? 'approved' : 'pending';
+
+    return this.prisma.$transaction(async (tx) => {
+      const employee = await tx.employee.findUnique({
+        where: { id: employee_id },
+      });
+
+      if (!employee) throw new HttpException('Employee not found', HttpStatus.NOT_FOUND);
+
+      let employeeShift = await tx.employee_shift.findFirst({
+        where: {
+          employee_id,
+          date: {
+            gte: dayjs(startTime).startOf('day').toDate(),
+            lte: dayjs(startTime).endOf('day').toDate(),
+          },
+        },
+      });
+
+      if (!employeeShift) {
+        employeeShift = await tx.employee_shift.create({
+          data: {
+            employee_id,
+            date: dayjs(startTime).startOf('day').toDate(),
+          },
+        });
+      }
+
+      const taskTracker = await tx.task_tracker.create({
+        data: {
+          employee_id,
+          start_time: startTime,
+          end_time: endTime,
+          status: taskStatus,
+          name: "Manual Registry",
+          description: notes || "Added by administrator",
+          duration: dayjs(endTime).diff(dayjs(startTime), 'seconds'),
+          created_at: startTime,
+          updated_at: endTime,
+        },
+      });
+
+      let terminal = await tx.terminal.findFirst({
+        where: { partner_id: employee.partner_id },
+        orderBy: { created_at: 'asc' },
+      });
+
+      if (!terminal) {
+        terminal = await tx.terminal.findFirst({
+          orderBy: { created_at: 'asc' },
+        });
+      }
+
+      if (!terminal) throw new HttpException('Terminal not found', HttpStatus.BAD_REQUEST);
+
+      await tx.employee_shift_clock.create({
+        data: {
+          employee_shift_id: employeeShift.id,
+          terminal_id: terminal.id,
+          time: startTime,
+          status: clockStatus,
+          session_id: taskTracker.id,
+          created_at: startTime,
+        },
+      });
+
+      await tx.employee_shift_clock.create({
+        data: {
+          employee_shift_id: employeeShift.id,
+          terminal_id: terminal.id,
+          time: endTime,
+          status: clockStatus,
+          session_id: taskTracker.id,
+          created_at: endTime,
+        },
+      });
+
+      return taskTracker;
     });
   }
 }

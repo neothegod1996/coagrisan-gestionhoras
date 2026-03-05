@@ -24,9 +24,10 @@ export type TimeSheetStatus = "approved" | "pending";
 
 export interface TimeSheetFormData {
   employee_id: string;
-  time: string;
-  terminal_id: string;
-  status?: TimeSheetStatus;
+  start_time: string;
+  end_time: string;
+  status: 'pending' | 'approved';
+  notes?: string;
 }
 
 export interface TimeSheetFilters {
