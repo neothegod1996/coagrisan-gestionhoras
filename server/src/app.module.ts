@@ -16,6 +16,7 @@ import { ReportsModule } from './reports/reports.module';
 import { TaskTrackerModule } from './employees/task-tracker/task-tracker.module';
 import { PartnersModule } from './partners/partners.module';
 import { EmployeeShiftClockModule } from './employee-shift-clock/employee-shift-clock.module';
+import { ZktecoModule } from './zkteco/zkteco.module';
 import { EmployeeShiftClockModuleById } from './employee-shift-clock-by-id/employee-shift-clock-by-id.module';
 
 @Module({
@@ -44,6 +45,7 @@ import { EmployeeShiftClockModuleById } from './employee-shift-clock-by-id/emplo
     TaskTrackerModule,
     PartnersModule,
     EmployeeShiftClockModule,
+    ZktecoModule,
   ],
   controllers: [AppController],
   providers: [
