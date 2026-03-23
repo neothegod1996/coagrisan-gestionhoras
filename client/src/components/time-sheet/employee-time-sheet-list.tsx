@@ -61,8 +61,11 @@ export default function TimeSheetList({ }: Props) {
         });
     };
 
-    const getEmployeeName = (timeSheet: TimeSheet) => {
-        const { first_name, last_name } = timeSheet.employee_shift.employee;
+    const getEmployeeName = (timeSheet: any) => {
+        console.log(timeSheet)
+        const employee = timeSheet?.employee || timeSheet?.employee_shift?.employee;
+        if (!employee) return 'Empleado Desconocido';
+        const { first_name, last_name } = employee;
         return `${first_name} ${last_name || ''}`.trim();
     }
 
@@ -128,11 +131,11 @@ export default function TimeSheetList({ }: Props) {
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    timeSheets.data.map((timeSheet) => (
-                                        <TableRow key={timeSheet.id} className="hover:bg-gray-50">
+                                    timeSheets.data.map((timeSheet: any) => (
+                                        <TableRow key={timeSheet.id || timeSheet.task_tracker_id} className="hover:bg-gray-50">
                                             <TableCell className="font-medium">{getEmployeeName(timeSheet)}</TableCell>
-                                            <TableCell>{formatDateTime(timeSheet.time)}</TableCell>
-                                            <TableCell>{timeSheet.terminal.name}</TableCell>
+                                            <TableCell>{formatDateTime(timeSheet.time || timeSheet.start?.time || new Date())}</TableCell>
+                                            <TableCell>{timeSheet.terminal?.name || timeSheet.start?.terminal?.name || 'Terminal Desconocido'}</TableCell>
                                         </TableRow>
                                     ))
                                 )}
