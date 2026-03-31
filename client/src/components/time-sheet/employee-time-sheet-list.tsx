@@ -132,8 +132,18 @@ export default function TimeSheetList({ }: Props) {
                                     </TableRow>
                                 ) : (
                                     timeSheets.data.map((timeSheet: any) => (
-                                        <TableRow key={timeSheet.id || timeSheet.task_tracker_id} className="hover:bg-gray-50">
-                                            <TableCell className="font-medium">{getEmployeeName(timeSheet)}</TableCell>
+                                        <TableRow
+                                            key={timeSheet.id || timeSheet.task_tracker_id}
+                                            className={timeSheet.is_modified ? "bg-red-50 hover:bg-red-100/80" : "hover:bg-gray-50"}
+                                        >
+                                            <TableCell className="font-medium">
+                                                {getEmployeeName(timeSheet)}
+                                                {timeSheet.is_modified && (
+                                                    <span className="ml-2 text-xs text-red-600 font-semibold bg-red-100 px-2 py-0.5 rounded-full">
+                                                        Modificado
+                                                    </span>
+                                                )}
+                                            </TableCell>
                                             <TableCell>{formatDateTime(timeSheet.time || timeSheet.start?.time || new Date())}</TableCell>
                                             <TableCell>{timeSheet.terminal?.name || timeSheet.start?.terminal?.name || 'Terminal Desconocido'}</TableCell>
                                         </TableRow>

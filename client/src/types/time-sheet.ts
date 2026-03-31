@@ -18,6 +18,7 @@ export interface TimeSheet {
       last_name: string | null;
     };
   };
+  is_modified?: boolean;
 }
 
 export type TimeSheetStatus = "approved" | "pending";

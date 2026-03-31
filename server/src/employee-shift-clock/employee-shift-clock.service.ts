@@ -137,7 +137,14 @@ export class EmployeeShiftClockService {
       orderBy: { time: 'asc' }
     });
 
+    const historyRecords = await this.prisma.task_tracker_history.findMany({
+      where: { task_tracker_id: { in: taskTrackerIds } },
+      select: { task_tracker_id: true }
+    });
+    const historySet = new Set(historyRecords.map(h => h.task_tracker_id));
+
     const data = await Promise.all(taskTrackers.map(async (tracker) => {
+      const is_modified = historySet.has(tracker.id);
 
       // Primero intentamos por session_id (registros nuevos)
       const clocksBySession = shiftClocks.filter(clock => clock.session_id === tracker.id);
@@ -150,6 +157,7 @@ export class EmployeeShiftClockService {
           name: tracker.name,
           status: tracker.status,
           employee: tracker.employee,
+          is_modified,
           start,
           end,
         };
@@ -248,6 +256,7 @@ export class EmployeeShiftClockService {
         name: tracker.name,
         status: tracker.status,
         employee: tracker.employee,
+        is_modified,
         start,
         end,
       };
@@ -426,6 +435,18 @@ export class EmployeeShiftClockService {
             ...(body.end_time && { time: new Date(body.end_time) }),
             ...(body.status && { status: body.status }),
           },
+        });
+      }
+
+      const startHasChanged = body.start_time && Math.floor(start.time.getTime() / 60000) !== Math.floor(new Date(body.start_time).getTime() / 60000);
+      const endHasChanged = body.end_time && (!end || Math.floor(end.time.getTime() / 60000) !== Math.floor(new Date(body.end_time).getTime() / 60000));
+
+      if (startHasChanged || endHasChanged) {
+        await tx.task_tracker_history.create({
+          data: {
+            task_tracker_id: taskTrackerId,
+            user_id: user.id
+          }
         });
       }
 
@@ -681,6 +702,41 @@ export class EmployeeShiftClockService {
       });
 
       return taskTracker;
+    });
+  }
+
+  async getHistory(taskTrackerId: string) {
+    if (!taskTrackerId) {
+      throw new HttpException('Task tracker id is required', HttpStatus.BAD_REQUEST);
+    }
+    const history = await this.prisma.task_tracker_history.findMany({
+      where: { task_tracker_id: taskTrackerId },
+      orderBy: { created_at: 'desc' },
+      select: {
+        id: true,
+        task_tracker_id: true,
+        user_id: true,
+        created_at: true,
+      }
+    });
+    console.log(history);
+
+    const userIds: string[] = Array.from(new Set(history.map(h => h.user_id as string)));
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, wp_name: true, wp_email: true }
+    });
+
+    console.log(users);
+
+    const usersMap = new Map(users.map(u => [u.id, u]));
+
+    return history.map(h => {
+      const { user_id, ...rest } = h;
+      return {
+        ...rest,
+        user: usersMap.get(user_id) || null
+      };
     });
   }
 }

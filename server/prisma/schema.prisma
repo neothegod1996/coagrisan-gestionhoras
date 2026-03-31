@@ -317,3 +317,14 @@ model task_tracker_shift_clock {
   @@index([employee_shift_clock_id])
 }
 
+model task_tracker_history {
+  id              String       @id @default(uuid())
+  task_tracker_id String
+  user_id         String
+  created_at      DateTime     @default(now())
+  updated_at      DateTime     @updatedAt
+
+  @@index([task_tracker_id])
+  @@index([user_id])
+}
+

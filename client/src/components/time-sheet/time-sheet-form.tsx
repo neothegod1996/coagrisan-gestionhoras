@@ -82,14 +82,22 @@ export default function TimeSheetForm({
     });
   }, [isOpen, employeeSearch]);
 
+  const toLocalDatetimeLocal = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const offset = date.getTimezoneOffset() * 60000;
+    const localDate = new Date(date.getTime() - offset);
+    return localDate.toISOString().slice(0, 16);
+  };
+
   // Resetear form al abrir
   useEffect(() => {
     if (!isOpen) return;
     if (isEdit && editTarget) {
       form.reset({
         employee_id: editTarget.employeeId,
-        start_time: new Date(editTarget.currentStartTime).toISOString().slice(0, 16),
-        end_time: editTarget.currentEndTime ? new Date(editTarget.currentEndTime).toISOString().slice(0, 16) : '',
+        start_time: toLocalDatetimeLocal(editTarget.currentStartTime),
+        end_time: editTarget.currentEndTime ? toLocalDatetimeLocal(editTarget.currentEndTime) : '',
         status: editTarget.currentStatus as "pending" | "approved",
       });
     } else {
@@ -103,8 +111,7 @@ export default function TimeSheetForm({
   }, [isOpen, editTarget]);
 
   const toUTCISOString = (localDateString: string) => {
-    const [date, time] = localDateString.split("T");
-    return new Date(`${date}T${time}:00Z`).toISOString();
+    return new Date(localDateString).toISOString();
   };
 
   const handleSubmit = async (values: TimeSheetFormValues) => {

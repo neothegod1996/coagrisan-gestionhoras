@@ -92,4 +92,16 @@ export class EmployeeShiftClockController {
       message: 'Record created successfully',
     });
   }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(role.admin, role.manager)
+  @Get(':id/history')
+  async getHistory(@Param('id') id: string, @Res() res: Response) {
+    const history = await this.employeeShiftClockService.getHistory(id);
+    return res.status(200).json({
+      data: history,
+      success: true,
+      message: 'History fetched successfully',
+    });
+  }
 }
