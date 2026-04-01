@@ -278,7 +278,7 @@ export default function IncidenceList({ }: Props) {
                                     <TableHead className="font-semibold">Pago</TableHead>
                                     <TableHead className="font-semibold">Estado</TableHead>
                                     <TableHead className="font-semibold">Empleados</TableHead>
-                                    <TableHead className="font-semibold">Perfiles</TableHead>
+                                    <TableHead className="font-semibold">Categorías</TableHead>
                                     <TableHead className="font-semibold text-right">Acciones</TableHead>
                                 </TableRow>
                             </TableHeader>

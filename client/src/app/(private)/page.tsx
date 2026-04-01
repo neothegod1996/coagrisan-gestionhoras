@@ -120,8 +120,8 @@ function EmployeeManagement() {
               <Users className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h3 className="font-medium text-slate-900">Perfiles</h3>
-              <p className="text-xs text-slate-600">Gestión de perfiles</p>
+              <h3 className="font-medium text-slate-900">Categorías</h3>
+              <p className="text-xs text-slate-600">Gestión de categorías</p>
             </div>
           </div>
         </Link>

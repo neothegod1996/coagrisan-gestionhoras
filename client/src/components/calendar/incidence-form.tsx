@@ -359,7 +359,7 @@ export default function IncidenceForm({
                                                 name="profile_ids"
                                                 render={({ field }) => (
                                                     <FormItem>
-                                                        <FormLabel className="text-sm font-medium text-slate-700">Perfiles</FormLabel>
+                                                        <FormLabel className="text-sm font-medium text-slate-700">Categorías</FormLabel>
                                                         <FormControl>
                                                             <MultiCombobox
                                                                 options={profiles.data.map((profile: Profile) => ({
@@ -369,9 +369,9 @@ export default function IncidenceForm({
                                                                 values={field.value || []}
                                                                 onSearchChange={setProfileSearch}
                                                                 onValuesChange={field.onChange}
-                                                                placeholder="Seleccionar perfiles"
-                                                                searchPlaceholder="Buscar perfiles por nombre"
-                                                                emptyMessage="No se encontraron perfiles"
+                                                                placeholder="Seleccionar categorías"
+                                                                searchPlaceholder="Buscar categorías por nombre"
+                                                                emptyMessage="No se encontraron categorías"
                                                                 loading={profiles.loading}
                                                                 className="w-full h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
                                                             />

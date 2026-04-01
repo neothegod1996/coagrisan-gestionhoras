@@ -88,13 +88,13 @@ export default function ProfileForm({
       } else {
         await createProfile(values);
       }
-      toast.success("Perfil guardado correctamente");
+      toast.success("Categoría guardada correctamente");
       refetch();
       onClose();
       setProfile({ data: null, loading: true });
     } catch (error) {
       console.log(error);
-      toast.error("Hubo un error al guardar el perfil, por favor intente nuevamente.");
+      toast.error("Hubo un error al guardar la categoría, por favor intente nuevamente.");
     } finally {
       setIsSubmitting(false);
     }
@@ -114,12 +114,12 @@ export default function ProfileForm({
             <div className="w-10 h-10 bg-brand-primary rounded-md flex items-center justify-center">
               <User className="w-5 h-5 text-white" />
             </div>
-            {profile_id ? "Editar Perfil" : "Nuevo Perfil"}
+            {profile_id ? "Editar Categoría" : "Nueva Categoría"}
           </DialogTitle>
           <DialogDescription className="text-slate-200 mt-2">
             {profile_id
-              ? "Modifica los datos del perfil seleccionado"
-              : "Completa todos los campos para crear un nuevo perfil"
+              ? "Modifica los datos de la categoría seleccionada"
+              : "Completa todos los campos para crear una nueva categoría"
             }
           </DialogDescription>
         </DialogHeader>
@@ -138,7 +138,7 @@ export default function ProfileForm({
                   <div className="w-8 h-8 bg-brand-primary rounded-md flex items-center justify-center">
                     <User className="w-4 h-4 text-white" />
                   </div>
-                  <h3 className="text-lg font-semibold text-slate-800">Información del Perfil</h3>
+                  <h3 className="text-lg font-semibold text-slate-800">Información de la Categoría</h3>
                 </div>
 
                 <div className="space-y-4">
@@ -205,7 +205,7 @@ export default function ProfileForm({
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                       Guardando...
                     </div>
-                  ) : profile_id ? "Actualizar Perfil" : "Crear Perfil"}
+                  ) : profile_id ? "Actualizar Categoría" : "Crear Categoría"}
                 </Button>
               </div>
             </form>

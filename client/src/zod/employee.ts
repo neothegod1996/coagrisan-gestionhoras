@@ -15,7 +15,7 @@ export const employeeFormSchema = z.object({
     mobile_number: z.string().min(1, "El móvil es obligatorio"),
     email: z.string().email("Debe ser un email válido"),
     alias: z.string().optional(),
-    profile_id: z.string().min(1, "El perfil es obligatorio"),
+    profile_id: z.string().min(1, "La categoría es obligatoria"),
     schedule_id: z.string().min(1, "El horario es obligatorio"),
     location_id: z.string().min(1, "La ubicación es obligatoria"),
     device_pin: z.string().optional(),

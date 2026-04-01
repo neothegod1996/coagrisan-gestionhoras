@@ -36,7 +36,7 @@ export const incidenceFormSchema = z.object({
   }
   return true;
 }, {
-  message: "Debe seleccionar al menos un empleado o perfil cuando no es global",
+  message: "Debe seleccionar al menos un empleado o categoría cuando no es global",
   path: ["is_global"],
 });
 

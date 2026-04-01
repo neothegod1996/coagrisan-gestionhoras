@@ -149,7 +149,7 @@ export default function TimeTrackingFiltersComponent({
         {/* Centro */}
         <div className="space-y-2">
           <Label htmlFor="center" className="text-sm font-medium text-slate-700">
-            Perfil
+            Categoría
           </Label>
           <MultiCombobox
             options={profiles.data.map((profile: Profile) => ({
@@ -159,9 +159,9 @@ export default function TimeTrackingFiltersComponent({
             values={localFilters.profile_id || []}
             onSearchChange={setProfileSearch}
             onValuesChange={(value) => handleFilterChange('profile_id', value || undefined)}
-            placeholder="Seleccionar perfil"
-            searchPlaceholder="Buscar perfiles por nombre"
-            emptyMessage="No se encontraron perfiles"
+            placeholder="Seleccionar categoría"
+            searchPlaceholder="Buscar categorías por nombre"
+            emptyMessage="No se encontraron categorías"
             loading={profiles.loading}
             className="w-full h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
             multiple={false}
@@ -284,7 +284,7 @@ export default function TimeTrackingFiltersComponent({
             )}
             {localFilters.profile_id && selectedProfile && (
               <span className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-green-100 text-green-800">
-                Perfil: {selectedProfile.name}
+                Categoría: {selectedProfile.name}
               </span>
             )}
           </div>

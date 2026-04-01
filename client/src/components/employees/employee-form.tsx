@@ -626,7 +626,7 @@ export default function EmployeeForm({
                     name="profile_id"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium text-slate-700">Perfil *</FormLabel>
+                        <FormLabel className="text-sm font-medium text-slate-700">Categoría *</FormLabel>
                         <FormControl>
                           <MultiCombobox
                             options={profiles.data.map((profile) => ({
@@ -636,9 +636,9 @@ export default function EmployeeForm({
                             values={field.value || ""}
                             onSearchChange={setProfileSearch}
                             onValuesChange={field.onChange}
-                            placeholder="Seleccionar perfil"
-                            searchPlaceholder="Buscar perfiles por nombre"
-                            emptyMessage="No se encontraron perfiles"
+                            placeholder="Seleccionar categoría"
+                            searchPlaceholder="Buscar categorías por nombre"
+                            emptyMessage="No se encontraron categorías"
                             loading={profiles.loading}
                             multiple={false}
                             className="w-full h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"

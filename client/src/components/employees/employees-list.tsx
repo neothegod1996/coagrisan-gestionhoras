@@ -210,9 +210,9 @@ export default function EmployeesList({ }: EmployeesListProps) {
                   values={filters.profile || ""}
                   onSearchChange={setProfileSearch}
                   onValuesChange={(value) => handleFilterChange("profile", value as string)}
-                  placeholder="Seleccionar perfil"
-                  searchPlaceholder="Buscar perfiles por nombre"
-                  emptyMessage="No se encontraron perfiles"
+                  placeholder="Seleccionar categoría"
+                  searchPlaceholder="Buscar categorías por nombre"
+                  emptyMessage="No se encontraron categorías"
                   loading={profiles.loading}
                   multiple={false}
                   className="w-full h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
@@ -246,7 +246,7 @@ export default function EmployeesList({ }: EmployeesListProps) {
                   <TableHead className="font-semibold">Nombre Completo</TableHead>
                   <TableHead className="font-semibold">NIF/DNI</TableHead>
                   <TableHead className="font-semibold">Email</TableHead>
-                  <TableHead className="font-semibold">Perfil</TableHead>
+                  <TableHead className="font-semibold">Categoría</TableHead>
                   <TableHead className="font-semibold">Horario</TableHead>
                   <TableHead className="font-semibold">Ubicación</TableHead>
                   <TableHead className="font-semibold text-right">Acciones</TableHead>

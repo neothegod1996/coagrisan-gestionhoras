@@ -111,8 +111,8 @@ export default function ProfilesList({}: Props) {
               <User className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-semibold">Gestión de Perfiles</h1>
-              <p className="text-slate-200 mt-1">Administra los perfiles de usuario</p>
+              <h1 className="text-2xl font-semibold">Gestión de Categorías</h1>
+              <p className="text-slate-200 mt-1">Administra las categorías de usuario</p>
             </div>
           </div>
           <Button
@@ -120,7 +120,7 @@ export default function ProfilesList({}: Props) {
             className="px-6 py-3 h-11 font-medium bg-brand-primary hover:bg-brand-primary-600 text-white border-0"
           >
             <Plus className="w-4 h-4 mr-2" />
-            Nuevo Perfil
+            Nueva Categoría
           </Button>
         </div>
       </div>
@@ -141,7 +141,7 @@ export default function ProfilesList({}: Props) {
             <div className="w-8 h-8 bg-slate-100 rounded-md flex items-center justify-center">
               <User className="w-4 h-4 text-slate-600" />
             </div>
-            <h2 className="text-lg font-semibold text-slate-800">Lista de Perfiles</h2>
+            <h2 className="text-lg font-semibold text-slate-800">Lista de Categorías</h2>
           </div>
         </CardHeader>
 
@@ -199,7 +199,7 @@ export default function ProfilesList({}: Props) {
                 ) : profiles.data.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-8 text-gray-500">
-                      No se encontraron perfiles
+                      No se encontraron categorías
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -240,10 +240,10 @@ export default function ProfilesList({}: Props) {
                             </AlertDialogTrigger>
                             <AlertDialogContent className="rounded-lg">
                               <AlertDialogHeader>
-                                <AlertDialogTitle>¿Eliminar perfil?</AlertDialogTitle>
+                                <AlertDialogTitle>¿Eliminar categoría?</AlertDialogTitle>
                                 <AlertDialogDescription>
                                   Esta acción no se puede deshacer. Se eliminará permanentemente
-                                  el perfil {profile.name} y todos sus datos asociados.
+                                  la categoría {profile.name} y todos sus datos asociados.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
