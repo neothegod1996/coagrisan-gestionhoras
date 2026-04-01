@@ -5,6 +5,10 @@ export class CreateEmployeeDto {
     @IsString()
     card_id: string;
 
+    @IsOptional()
+    @IsString()
+    employee_code?: string;
+
     @IsString()
     @IsNotEmpty()
     first_name: string;

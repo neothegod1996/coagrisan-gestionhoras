@@ -96,7 +96,8 @@ export class EmployeesService {
         { email: { contains: search } },
         { dni: { contains: search } },
         { first_name: { contains: search } },
-        { last_name: { contains: search } }
+        { last_name: { contains: search } },
+        { employee_code: { contains: search } }
       ];
       if (searchTerms.length > 1) {
         searchConditions.push({
@@ -121,8 +122,6 @@ export class EmployeesService {
       delete where.partner_id;
     }
 
-    console.log('Where clause:', where);
-
     const [employees, count] = await this.prisma.$transaction([
       this.prisma.employee.findMany({
         where,
@@ -132,6 +131,7 @@ export class EmployeesService {
           id: true,
           first_name: true,
           last_name: true,
+          employee_code: true,
           dni: true,
           email: true,
           profile: { select: { id: true, name: true } },
@@ -160,6 +160,7 @@ export class EmployeesService {
         id: true,
         alias: true,
         card_id: true,
+        employee_code: true,
         first_name: true,
         last_name: true,
         dni: true,

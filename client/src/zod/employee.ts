@@ -2,6 +2,7 @@ import z from "zod";
 
 export const employeeFormSchema = z.object({
     card_id: z.string().min(1, "El número de tarjeta es obligatorio"),
+    employee_code: z.string().optional(),
     first_name: z.string().min(1, "El nombre es obligatorio"),
     last_name: z.string().min(1, "Los apellidos son obligatorios"),
     dni: z.string().min(9, "El NIF/DNI debe tener al menos 9 caracteres"),

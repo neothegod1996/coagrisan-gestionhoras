@@ -86,6 +86,7 @@ export default function EmployeeForm({
     if (isOpen && !employee.data?.id) {
       form.reset({
         card_id: '',
+        employee_code: '',
         device_pin: '',
         first_name: '',
         last_name: '',
@@ -123,6 +124,7 @@ export default function EmployeeForm({
 
       form.reset({
         card_id: data?.card_id || '',
+        employee_code: data?.employee_code || '',
         device_pin: data?.device_pin || '',
         first_name: data?.first_name || '',
         last_name: data?.last_name || '',
@@ -147,6 +149,7 @@ export default function EmployeeForm({
   useEffect(() => {
     if (!employee.data?.id || !profiles.data?.length || !schedules.data?.length || !locations.data?.length) return;
     form.reset({
+      ...form.getValues(),
       profile_id: employee?.data?.profile?.id || '',
       schedule_id: employee?.data?.schedule?.id || '',
       location_id: employee?.data?.location?.id || ''
@@ -273,6 +276,24 @@ export default function EmployeeForm({
                       <FormControl>
                         <Input
                           placeholder="Ej: 2 o 1234"
+                          {...field}
+                          className="h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="employee_code"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-slate-700">Código de Empleado</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Ej: EMP001"
                           {...field}
                           className="h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
                         />

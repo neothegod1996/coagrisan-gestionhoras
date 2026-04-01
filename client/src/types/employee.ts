@@ -6,6 +6,7 @@ import { Schedule } from "./schedule";
 export interface Employee {
   id: string;
   card_id: string;
+  employee_code?: string;
   first_name: string;
   last_name: string;
   dni: string;
@@ -19,6 +20,7 @@ export interface FullEmployee {
   id: string;
   card_id: string;
   device_pin?: string;
+  employee_code?: string;
   first_name: string;
   last_name: string;
   dni: string;
@@ -40,6 +42,7 @@ export interface FullEmployee {
 export interface EmployeeFormData {
   card_id: string;
   device_pin?: string;
+  employee_code?: string;
   first_name: string;
   last_name: string;
   dni: string;

@@ -56,7 +56,7 @@ interface EmployeesListProps {
 
 }
 
-export default function EmployeesList({}: EmployeesListProps) {
+export default function EmployeesList({ }: EmployeesListProps) {
   const [employees, setEmployees] = useState<PaginatedRequestHandler<Employee>>({ data: [], loading: true, total_pages: 0, total: 0 });
   const [search, setSearch] = useState<string>("");
   const [filters, setFilters] = useState<EmployeeFilters>({
@@ -96,7 +96,7 @@ export default function EmployeesList({}: EmployeesListProps) {
       setProfiles({ data: data || [], loading: false, total_pages: total_pages || 0, total: total || 0 });
     });
   }
-  
+
   const handleGetLocations = async (search: string) => {
     setLocations({ ...locations, loading: true });
     getLocations({ page: 1, search: search }).then((response) => {
@@ -107,7 +107,7 @@ export default function EmployeesList({}: EmployeesListProps) {
 
   useEffect(() => {
     const timeout = setTimeout(() => {
-    handleGetProfiles(profileSearch);
+      handleGetProfiles(profileSearch);
     }, 500);
     return () => clearTimeout(timeout);
   }, [profileSearch]);
@@ -268,7 +268,7 @@ export default function EmployeesList({}: EmployeesListProps) {
                 ) : (
                   employees.data.map((employee) => (
                     <TableRow key={employee.id} className="hover:bg-gray-50">
-                      <TableCell className="font-medium">{employee.id.slice(-10)}</TableCell>
+                      <TableCell className="font-medium">{employee.employee_code || '—'}</TableCell>
                       <TableCell>
                         <span className="font-medium">
                           {employee.first_name} {employee.last_name}
