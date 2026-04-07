@@ -13,7 +13,7 @@ import { Response } from 'express';
 
 @Controller('incidences')
 export class IncidencesController {
-  constructor(private readonly incidencesService: IncidencesService) {}
+  constructor(private readonly incidencesService: IncidencesService) { }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(role.admin, role.manager)
@@ -28,7 +28,7 @@ export class IncidencesController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(role.admin, role.manager)
+  @Roles(role.admin, role.manager, role.employee)
   @Get()
   async findAll(@Query() query: QueryIncidenceDto, @Res() res: Response, @Req() req: RequestWithUser) {
     const incidences = await this.incidencesService.findAll(req.user, query);
@@ -71,6 +71,24 @@ export class IncidencesController {
     return res.status(200).json({
       success: true,
       message: 'Incidence deleted successfully',
+    });
+  }
+
+  @Roles(role.admin, role.manager, role.employee)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('summary/:employeeId')
+  async getSummaryByEmployee(
+    @Param('employeeId') employeeId: string,
+    @Res() res: Response,
+    @Req() req: RequestWithUser,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string
+  ) {
+    const summary = await this.incidencesService.getSummaryByEmployee(req.user, employeeId, startDate, endDate);
+    return res.status(200).json({
+      success: true,
+      data: summary,
+      message: 'Incidence summary fetched successfully',
     });
   }
 

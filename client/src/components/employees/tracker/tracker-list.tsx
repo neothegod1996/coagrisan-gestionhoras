@@ -52,6 +52,7 @@ import {
 } from "@/services/task-tracker";
 import TaskTrackerForm from "@/components/employees/tracker/task-tracker-form";
 import { Ring, Ring2 } from "ldrs/react";
+import dayjs from "dayjs";
 
 interface TaskTrackerListProps {}
 
@@ -284,8 +285,10 @@ export default function TaskTrackerList({}: TaskTrackerListProps) {
                 <TableRow className="bg-gray-50">
                   <TableHead className="font-semibold">Nombre</TableHead>
                   <TableHead className="font-semibold">Descripción</TableHead>
-                  <TableHead className="font-semibold">Estado</TableHead>
-                  {/* <TableHead className="font-semibold">Tiempo</TableHead> */}
+                  <TableHead className="font-semibold text-center">Estado</TableHead>
+                  <TableHead className="font-semibold text-center">Inicio</TableHead>
+                  <TableHead className="font-semibold text-center">Fin</TableHead>
+                  <TableHead className="font-semibold text-center">Tiempo</TableHead>
                   <TableHead className="font-semibold text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -311,11 +314,21 @@ export default function TaskTrackerList({}: TaskTrackerListProps) {
                           {task.description || "Sin descripción"}
                         </span>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-center">
                         {getStatusBadge(task.status)}
                       </TableCell>
-                      {/* <TableCell>
-                        <div className="flex items-center gap-2">
+                      <TableCell className="text-center font-mono text-sm">
+                        <span className={task.start_time_modified ? "text-red-600 font-medium underline decoration-dotted" : "text-slate-600"}>
+                          {task.start_time ? dayjs(task.start_time).format("HH:mm:ss") : "-"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center font-mono text-sm">
+                        <span className={task.end_time_modified ? "text-red-600 font-medium underline decoration-dotted" : "text-slate-600"}>
+                          {task.end_time ? dayjs(task.end_time).format("HH:mm:ss") : "-"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-2">
                           <Clock className="w-4 h-4 text-gray-500" />
                           <span className="font-mono text-sm">
                             {task.status === "running" && taskTimers.has(task.id)
@@ -325,7 +338,7 @@ export default function TaskTrackerList({}: TaskTrackerListProps) {
                               : "00:00:00"}
                           </span>
                         </div>
-                      </TableCell> */}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           {task.status === "pending" && (

@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Badge as BadgeComponent } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { redirect } from "next/navigation";
+import IncidenceSummary from "./incidence-summary";
+import EmployeeIncidenceList from "./employee-incidence-list";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
 dayjs.locale("es");
@@ -153,6 +155,13 @@ export default function EmployeeDetail({
           </CardContent>
         </Card>
       </div>
+
+      {employee?.id && (
+        <div className="mt-8 space-y-8">
+          <IncidenceSummary employeeId={employee.id} />
+          <EmployeeIncidenceList employeeId={employee.id} />
+        </div>
+      )}
     </div>
   );
 }

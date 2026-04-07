@@ -139,12 +139,14 @@ export class EmployeeShiftClockService {
 
     const historyRecords = await this.prisma.task_tracker_history.findMany({
       where: { task_tracker_id: { in: taskTrackerIds } },
-      select: { task_tracker_id: true }
+      select: { task_tracker_id: true, start_time_modified: true, end_time_modified: true }
     });
-    const historySet = new Set(historyRecords.map(h => h.task_tracker_id));
 
     const data = await Promise.all(taskTrackers.map(async (tracker) => {
-      const is_modified = historySet.has(tracker.id);
+      const taskHistory = historyRecords.filter(h => h.task_tracker_id === tracker.id);
+      const start_time_modified = taskHistory.some(h => h.start_time_modified);
+      const end_time_modified = taskHistory.some(h => h.end_time_modified);
+      const is_modified = taskHistory.length > 0;
 
       // Primero intentamos por session_id (registros nuevos)
       const clocksBySession = shiftClocks.filter(clock => clock.session_id === tracker.id);
@@ -158,6 +160,8 @@ export class EmployeeShiftClockService {
           status: tracker.status,
           employee: tracker.employee,
           is_modified,
+          start_time_modified,
+          end_time_modified,
           start,
           end,
         };
@@ -257,6 +261,8 @@ export class EmployeeShiftClockService {
         status: tracker.status,
         employee: tracker.employee,
         is_modified,
+        start_time_modified,
+        end_time_modified,
         start,
         end,
       };
@@ -313,18 +319,9 @@ export class EmployeeShiftClockService {
       startId = created.id;
     }
 
-    console.log('Updating employee shift clock with data:', {
-      taskTrackerId,
-      startId,
-      endId,
-      ...body,
-    });
-
     const start = await this.prisma.employee_shift_clock.findUnique({
       where: { id: startId },
     });
-
-    console.log('Found start shift clock:', start);
 
     if (!start) {
       throw new HttpException(
@@ -368,11 +365,6 @@ export class EmployeeShiftClockService {
       }
     }
 
-    console.log('Updating task tracker with data:', {
-      taskTrackerId,
-      ...body,
-    });
-
     let taskTrackerStatus: task_tracker_status | undefined = undefined;
 
     if (body.status) {
@@ -395,12 +387,6 @@ export class EmployeeShiftClockService {
     });
 
     return this.prisma.$transaction(async (tx) => {
-      console.log('Update data for start shift clock:', {
-        session_id,
-        ...(body.start_time && { time: new Date(body.start_time) }),
-        ...(body.status && { status: body.status }),
-      });
-
       const taskTracker = await tx.task_tracker.findUnique({
         where: { id: taskTrackerId },
       });
@@ -445,7 +431,9 @@ export class EmployeeShiftClockService {
         await tx.task_tracker_history.create({
           data: {
             task_tracker_id: taskTrackerId,
-            user_id: user.id
+            user_id: user.id,
+            start_time_modified: !!startHasChanged,
+            end_time_modified: !!endHasChanged,
           }
         });
       }
@@ -719,15 +707,12 @@ export class EmployeeShiftClockService {
         created_at: true,
       }
     });
-    console.log(history);
 
     const userIds: string[] = Array.from(new Set(history.map(h => h.user_id as string)));
     const users = await this.prisma.user.findMany({
       where: { id: { in: userIds } },
       select: { id: true, wp_name: true, wp_email: true }
     });
-
-    console.log(users);
 
     const usersMap = new Map(users.map(u => [u.id, u]));
 

@@ -77,6 +77,7 @@ export enum OnboardingOffboardingType {
 export interface EmployeeFilters {
   page: number;
   search: string;
+  limit?: number;
   profile?: string;
   location?: string;
   center?: string;

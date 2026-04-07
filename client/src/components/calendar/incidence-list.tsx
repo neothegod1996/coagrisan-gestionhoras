@@ -50,6 +50,10 @@ import {
 import { redirect } from "next/navigation";
 import { PaginatedRequestHandler } from "@/types";
 import { deleteIncidence, getIncidences } from "@/services/incidence";
+import { getEmployees } from "@/services/employee";
+import { useAuthStore } from "@/store/useAuthStore";
+import { AuthRoleEnum } from "@/types/auth";
+import { Employee } from "@/types/employee";
 import RingLoading from "../loading/Ring";
 import IncidenceForm from "./incidence-form";
 import dayjs from "dayjs";
@@ -64,13 +68,26 @@ interface Props {
 export default function IncidenceList({ }: Props) {
     const [incidences, setIncidences] = useState<PaginatedRequestHandler<Incidence>>({ data: [], loading: true, total_pages: 0, total: 0 });
     const [search, setSearch] = useState<string>("");
+    const [employeeList, setEmployeeList] = useState<Employee[]>([]);
+    const { user } = useAuthStore();
+    const isAdminOrManager = user?.role === AuthRoleEnum.Admin || user?.role === AuthRoleEnum.Manager;
+
     const [filters, setFilters] = useState<IncidenceFilters>({
         page: 1,
         search,
         show: IncidenceShowEnum.All,
         date: undefined,
-        type: undefined
+        type: undefined,
+        employee_id: undefined
     });
+
+    useEffect(() => {
+        if (isAdminOrManager) {
+            getEmployees({ page: 1, limit: 1000, search: "" }).then(res => {
+                if (res?.data) setEmployeeList(res.data);
+            });
+        }
+    }, [isAdminOrManager]);
 
     const handleGetIncidences = async (filters: IncidenceFilters) => {
         setIncidences({ ...incidences, loading: true });
@@ -263,6 +280,24 @@ export default function IncidenceList({ }: Props) {
                                         <SelectItem value={IncidenceShowEnum.Upcoming}>Próximas</SelectItem>
                                     </SelectContent>
                                 </Select>
+                                {isAdminOrManager && (
+                                    <Select
+                                        value={filters.employee_id || "all"}
+                                        onValueChange={(value) => handleFilterChange("employee_id", value === "all" ? undefined : value)}
+                                    >
+                                        <SelectTrigger className="w-full h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary">
+                                            <SelectValue placeholder="Empleado" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Todos los empleados</SelectItem>
+                                            {employeeList.map((emp) => (
+                                                <SelectItem key={emp.id} value={emp.id}>
+                                                    {emp.first_name} {emp.last_name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -342,8 +377,40 @@ export default function IncidenceList({ }: Props) {
                                                     {incidence.is_global ? "Global" : "Específica"}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell>{incidence.employees}</TableCell>
-                                            <TableCell>{incidence.profiles}</TableCell>
+                                            <TableCell>
+                                                {incidence.is_global ? (
+                                                    <span className="text-slate-500 italic text-sm">Todos</span>
+                                                ) : (
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {incidence.employees && incidence.employees.length > 0 ? (
+                                                            incidence.employees.map(e => (
+                                                                <Badge key={e.id} variant="secondary" className="font-normal text-xs">
+                                                                    {e.first_name} {e.last_name}
+                                                                </Badge>
+                                                            ))
+                                                        ) : (
+                                                            <span className="text-slate-400">-</span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </TableCell>
+                                            <TableCell>
+                                                {incidence.is_global ? (
+                                                    <span className="text-slate-500 italic text-sm">Todas</span>
+                                                ) : (
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {incidence.profiles && incidence.profiles.length > 0 ? (
+                                                            incidence.profiles.map(p => (
+                                                                <Badge key={p.id} variant="outline" className="font-normal text-xs">
+                                                                    {p.name}
+                                                                </Badge>
+                                                            ))
+                                                        ) : (
+                                                            <span className="text-slate-400">-</span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex items-center justify-end gap-2">
                                                     <Button

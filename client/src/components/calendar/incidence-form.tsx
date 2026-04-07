@@ -64,6 +64,7 @@ export default function IncidenceForm({
             is_global: false,
             employee_ids: [],
             profile_ids: [],
+            duration_hours: "",
         },
     });
     const incidenceType = form.watch('type');
@@ -80,6 +81,7 @@ export default function IncidenceForm({
                 is_global: false,
                 employee_ids: [],
                 profile_ids: [],
+                duration_hours: "",
             });
         }
     }, [isOpen, incidence.data?.id]);
@@ -105,6 +107,7 @@ export default function IncidenceForm({
                 is_global: data?.is_global,
                 employee_ids: data?.employees?.map((employee: any) => employee.id) || [],
                 profile_ids: data?.profiles?.map((profile: any) => profile.id) || [],
+                duration_hours: data?.duration_hours ? String(data?.duration_hours) : "",
             });
             setDateRange({
                 from: dayjs(data?.start_date),
@@ -148,7 +151,14 @@ export default function IncidenceForm({
         const body: any = {
             ...data,
         };
-        const useDurationHours = [IncidenceTypeEnum.MedicalLeave, IncidenceTypeEnum.SindicalLeave].includes(incidenceType);
+        const useDurationHours = [
+            IncidenceTypeEnum.MedicalLeave, 
+            IncidenceTypeEnum.SindicalLeave,
+            IncidenceTypeEnum.MedicalVisit,
+            IncidenceTypeEnum.UnionHours,
+            IncidenceTypeEnum.LeaveOfAbsence,
+            IncidenceTypeEnum.OvertimeRest
+        ].includes(incidenceType);
         if (!dateRange.from || !dateRange.to) return;
         if (isAllDay) {
             body.start_date = dateRange.from.startOf('day').toISOString();
@@ -261,6 +271,18 @@ export default function IncidenceForm({
                                                         </SelectItem>
                                                         <SelectItem value={IncidenceTypeEnum.SindicalLeave}>
                                                             Baja sindical
+                                                        </SelectItem>
+                                                        <SelectItem value={IncidenceTypeEnum.MedicalVisit}>
+                                                            Visita médica
+                                                        </SelectItem>
+                                                        <SelectItem value={IncidenceTypeEnum.UnionHours}>
+                                                            Horas sindicales
+                                                        </SelectItem>
+                                                        <SelectItem value={IncidenceTypeEnum.LeaveOfAbsence}>
+                                                            Excedencia
+                                                        </SelectItem>
+                                                        <SelectItem value={IncidenceTypeEnum.OvertimeRest}>
+                                                            Descanso exceso tiempo
                                                         </SelectItem>
                                                         <SelectItem value={IncidenceTypeEnum.Other}>
                                                             Otra
@@ -437,7 +459,14 @@ export default function IncidenceForm({
                                                 )}
                                             />
 
-                                            {![IncidenceTypeEnum.MedicalLeave, IncidenceTypeEnum.SindicalLeave].includes(incidenceType) ? (
+                                            {![
+                                                IncidenceTypeEnum.MedicalLeave, 
+                                                IncidenceTypeEnum.SindicalLeave,
+                                                IncidenceTypeEnum.MedicalVisit,
+                                                IncidenceTypeEnum.UnionHours,
+                                                IncidenceTypeEnum.LeaveOfAbsence,
+                                                IncidenceTypeEnum.OvertimeRest
+                                            ].includes(incidenceType) ? (
                                                 <FormField
                                                     control={form.control}
                                                     name="end_time"

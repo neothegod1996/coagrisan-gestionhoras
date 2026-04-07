@@ -145,8 +145,23 @@ export class TaskTrackerService {
       this.prisma.task_tracker.count({ where }),
     ]);
 
+    const taskTrackerIds = taskTrackers.map((t) => t.id);
+    const historyFlags = await this.prisma.task_tracker_history.findMany({
+      where: { task_tracker_id: { in: taskTrackerIds } },
+      select: { task_tracker_id: true, start_time_modified: true, end_time_modified: true },
+    });
+
+    const data = taskTrackers.map((task) => {
+      const taskHistory = historyFlags.filter((h) => h.task_tracker_id === task.id);
+      return {
+        ...task,
+        start_time_modified: taskHistory.some((h) => h.start_time_modified),
+        end_time_modified: taskHistory.some((h) => h.end_time_modified),
+      };
+    });
+
     return {
-      data: taskTrackers,
+      data,
       total: count,
       page,
       limit,
@@ -213,12 +228,31 @@ export class TaskTrackerService {
 
       const updateData: any = { ...body };
 
+      let startHasChanged = false;
+      let endHasChanged = false;
+
+      if (body.start_time) {
+        const newStartTime = new Date(body.start_time);
+        if (task.start_time && !dayjs(newStartTime).isSame(dayjs(task.start_time))) {
+          startHasChanged = true;
+        }
+        updateData.start_time = newStartTime;
+      }
+
       if (body.end_time) {
         const taskEndTime = new Date(body.end_time);
+        if (task.end_time && !dayjs(taskEndTime).isSame(dayjs(task.end_time))) {
+          endHasChanged = true;
+        }
         updateData.end_time = taskEndTime;
-        updateData.duration = task.start_time
-          ? dayjs(taskEndTime).diff(dayjs(task.start_time), 'seconds')
-          : undefined;
+      }
+
+      // Recalculate duration if we have both values
+      const currentStart = updateData.start_time || task.start_time;
+      const currentEnd = updateData.end_time || task.end_time;
+      
+      if (currentStart && currentEnd) {
+        updateData.duration = dayjs(currentEnd).diff(dayjs(currentStart), 'seconds');
       }
 
       const taskTracker = await tx.task_tracker.update({
@@ -226,24 +260,63 @@ export class TaskTrackerService {
         data: updateData,
       });
 
+      if (startHasChanged || endHasChanged) {
+        await tx.task_tracker_history.create({
+          data: {
+            task_tracker_id: id,
+            user_id: user.id,
+            start_time_modified: startHasChanged,
+            end_time_modified: endHasChanged,
+          },
+        });
+      }
+
       if (!body.end_time) {
         return taskTracker;
       }
 
       const taskEndTime = new Date(body.end_time);
 
-      const employeeShift = await tx.employee_shift.findFirst({
-        where: {
-          employee_id: employeeId,
-          date: {
-            gte: dayjs(taskEndTime).startOf('day').toDate(),
-            lte: dayjs(taskEndTime).endOf('day').toDate(),
-          },
-        },
+      // Attempt to find shift from the initial clock-in of this task
+      const startClock = await tx.employee_shift_clock.findFirst({
+        where: { session_id: id },
       });
 
-      if (!employeeShift) {
-        throw new HttpException('Employee shift not found', HttpStatus.BAD_REQUEST);
+      let employeeShiftId = startClock?.employee_shift_id;
+
+      if (!employeeShiftId) {
+        // Fallback: search by end_time day
+        const existingShift = await tx.employee_shift.findFirst({
+          where: {
+            employee_id: employeeId,
+            date: {
+              gte: dayjs(taskEndTime).startOf('day').toDate(),
+              lte: dayjs(taskEndTime).endOf('day').toDate(),
+            },
+          },
+        });
+        employeeShiftId = existingShift?.id;
+      }
+
+      if (!employeeShiftId) {
+        // Fallback: Create a shift if still not found (similar to create logic)
+        const employee = await tx.employee.findFirst({
+          where: { id: employeeId },
+          include: { schedule: true },
+        });
+
+        const scheduleSession = employee?.schedule_id
+          ? await this.getClosestScheduleSession(employee.schedule_id, taskEndTime)
+          : null;
+
+        const newShift = await tx.employee_shift.create({
+          data: {
+            employee_id: employeeId,
+            date: taskEndTime,
+            schedule_session_id: scheduleSession?.id,
+          },
+        });
+        employeeShiftId = newShift.id;
       }
 
       let terminal = await tx.terminal.findFirst({
@@ -263,7 +336,7 @@ export class TaskTrackerService {
 
       await tx.employee_shift_clock.create({
         data: {
-          employee_shift_id: employeeShift.id,
+          employee_shift_id: employeeShiftId,
           terminal_id: terminal.id,
           time: taskEndTime,
           status: 'pending',

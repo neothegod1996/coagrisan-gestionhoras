@@ -203,23 +203,14 @@ export class EmployeeShiftClockServiceById {
       );
     }
 
-    if(!startId) {
+    if (!startId) {
       const created = await this.create(user, taskTrackerId);
       startId = created.id;
     }
 
-    console.log('Updating employee shift clock with data:', {
-      taskTrackerId,
-      startId,
-      endId,
-      ...body,
-    });
-
     const start = await this.prisma.employee_shift_clock.findUnique({
       where: { id: startId },
     });
-
-    console.log('Found start shift clock:', start);
 
     if (!start) {
       throw new HttpException(
@@ -263,11 +254,6 @@ export class EmployeeShiftClockServiceById {
       }
     }
 
-    console.log('Updating task tracker with data:', {
-      taskTrackerId,
-      ...body,
-    });
-
     let taskTrackerStatus: task_tracker_status | undefined = undefined;
 
     if (body.status) {
@@ -290,11 +276,6 @@ export class EmployeeShiftClockServiceById {
     });
 
     return this.prisma.$transaction(async (tx) => {
-      console.log('Update data for start shift clock:', {
-        session_id,
-        ...(body.start_time && { time: new Date(body.start_time) }),
-        ...(body.status && { status: body.status }),
-      });
 
       const taskTracker = await tx.task_tracker.findUnique({
         where: { id: taskTrackerId },

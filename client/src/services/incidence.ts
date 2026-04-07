@@ -99,3 +99,24 @@ export async function deleteIncidence(id: string) {
         return null;
     }
 }
+
+export async function getIncidenceSummary(employeeId: string, startDate?: string, endDate?: string) {
+    const token = await getAccessToken();
+    try {
+        const response = await axios.request({
+            method: 'GET',
+            url: `/api/incidences/summary/${employeeId}`,
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+            params: {
+                startDate,
+                endDate,
+                partner_id: localStorage.getItem('partner_id'),
+            },
+        });
+        return response.data;
+    } catch (error) {
+        return null;
+    }
+}

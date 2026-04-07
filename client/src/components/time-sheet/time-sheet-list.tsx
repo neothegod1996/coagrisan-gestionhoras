@@ -272,18 +272,21 @@ export default function TimeSheetList() {
                   <TableRow><TableCell colSpan={6} className="text-center py-8 text-gray-500">No se encontraron registros</TableCell></TableRow>
                 ) : (
                   timeSheets.data.map((item: any) => (
-                    <TableRow key={item.task_tracker_id} className={item.is_modified ? "bg-red-50 hover:bg-red-100/80" : "hover:bg-gray-50"}>
+                    <TableRow key={item.task_tracker_id} className="hover:bg-gray-50">
                       <TableCell className="font-medium">
                         {item.employee.first_name} {item.employee.last_name || ''}
-                        {item.is_modified && (
-                          <span className="ml-2 text-xs text-red-600 font-semibold bg-red-100 px-2 py-0.5 rounded-full">
-                            Modificado
-                          </span>
-                        )}
                       </TableCell>
                       <TableCell>{item.name}</TableCell>
-                      <TableCell>{item.start ? formatDateTime(item.start.time) : '—'}</TableCell>
-                      <TableCell>{item.end ? formatDateTime(item.end.time) : '—'}</TableCell>
+                      <TableCell>
+                        <span className={item.start_time_modified ? "text-red-600 font-medium underline decoration-dotted" : ""}>
+                          {item.start ? formatDateTime(item.start.time) : '—'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={item.end_time_modified ? "text-red-600 font-medium underline decoration-dotted" : ""}>
+                          {item.end ? formatDateTime(item.end.time) : '—'}
+                        </span>
+                      </TableCell>
                       <TableCell>{getStatusBadge(item.start?.status || 'pending')}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">

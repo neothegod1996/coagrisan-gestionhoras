@@ -10,8 +10,12 @@ export interface Incidence {
     all_day: boolean;
     paid?: boolean;
     is_global: boolean;
-    employees?: number;
-    profiles?: number[];
+    employees?: { id: string; first_name: string; last_name: string }[];
+    profiles?: { id: string; name: string }[];
+    _count?: {
+        employees: number;
+        profiles: number;
+    };
 }
 export interface FullIncidence {
     id: string;
@@ -33,6 +37,10 @@ export enum IncidenceTypeEnum {
     MedicalLeave = 'medical_leave',
     PersonalLeave = 'personal_leave',
     SindicalLeave = 'sindical_leave',
+    MedicalVisit = 'medical_visit',
+    UnionHours = 'union_hours',
+    LeaveOfAbsence = 'leave_of_absence',
+    OvertimeRest = 'overtime_rest',
     Other = 'other',
 }
 export const IncidenceType = {
@@ -71,6 +79,30 @@ export const IncidenceType = {
         color: 'bg-purple-100 text-purple-800',
         bgHex: '#f5e6ff',
         textHex: '#7e22ce',
+    },
+    [IncidenceTypeEnum.MedicalVisit]: {
+        label: 'Visita médica',
+        color: 'bg-indigo-100 text-indigo-800',
+        bgHex: '#e0e7ff',
+        textHex: '#3730a3',
+    },
+    [IncidenceTypeEnum.UnionHours]: {
+        label: 'Horas sindicales',
+        color: 'bg-pink-100 text-pink-800',
+        bgHex: '#fce7f3',
+        textHex: '#9d174d',
+    },
+    [IncidenceTypeEnum.LeaveOfAbsence]: {
+        label: 'Excedencia',
+        color: 'bg-orange-100 text-orange-800',
+        bgHex: '#ffedd5',
+        textHex: '#9a3412',
+    },
+    [IncidenceTypeEnum.OvertimeRest]: {
+        label: 'Descanso exceso tiempo',
+        color: 'bg-cyan-100 text-cyan-800',
+        bgHex: '#ecfeff',
+        textHex: '#155e75',
     },
     [IncidenceTypeEnum.Other]: {
         label: 'Otras',

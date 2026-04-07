@@ -5,6 +5,8 @@ export interface TaskTracker {
   status: TaskStatus;
   start_time?: string;
   end_time?: string;
+  start_time_modified?: boolean;
+  end_time_modified?: boolean;
   duration?: number; // en segundos
   created_at: string;
   updated_at: string;

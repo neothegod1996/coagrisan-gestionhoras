@@ -118,10 +118,14 @@ export class IncidencesService {
       });
     }
     
-    if(employee_id) {
-      where.employees = {
-        some: { id: employee_id }
-      };
+    if (employee_id || user.role === role.employee) {
+      const final_employee_id = user.role === role.employee ? user.employee?.id : employee_id;
+      
+      if (final_employee_id) {
+        where.employees = {
+          some: { id: final_employee_id }
+        };
+      }
     }
     
     if(type) {
@@ -150,6 +154,19 @@ export class IncidencesService {
           all_day: true,
           paid: true,
           is_global: true,
+          employees: {
+            select: {
+              id: true,
+              first_name: true,
+              last_name: true,
+            }
+          },
+          profiles: {
+            select: {
+              id: true,
+              name: true,
+            }
+          },
           _count: {
             select: {
               employees: true,
@@ -345,5 +362,55 @@ export class IncidencesService {
         },
       },
     });
+  }
+  async getSummaryByEmployee(user: User, employeeId: string, startDate?: string, endDate?: string) {
+    const partner_id = user.partner_id;
+    
+    // Security check for role.employee
+    if (user.role === role.employee && user.employee?.id !== employeeId) {
+      return []; // Or throw an UnauthorizedException
+    }
+
+    const where: any = {
+      employees: {
+        some: { id: employeeId }
+      }
+    };
+    if (partner_id) where.partner_id = partner_id;
+
+    if (startDate || endDate) {
+      where.AND = [];
+      if (startDate) where.AND.push({ start_date: { gte: dayjs(startDate).startOf('day').toDate() } });
+      if (endDate) where.AND.push({ end_date: { lte: dayjs(endDate).endOf('day').toDate() } });
+    }
+
+    const incidences = await this.prisma.incidence.findMany({
+      where,
+      select: {
+        type: true,
+        duration_hours: true,
+        start_date: true,
+        end_date: true,
+        all_day: true,
+      }
+    });
+
+    const summary: Record<string, number> = {};
+
+    incidences.forEach((inc) => {
+      let hours = inc.duration_hours || 0;
+      if (!hours && inc.start_date && inc.end_date) {
+        // Calculate hours if duration_hours is not set
+        const sessionHours = dayjs(inc.end_date).diff(dayjs(inc.start_date), 'hour', true);
+        hours = Math.max(0, sessionHours);
+      }
+      
+      summary[inc.type] = (summary[inc.type] || 0) + hours;
+    });
+
+    return Object.entries(summary).map(([type, total_hours]) => ({
+      type,
+      total_hours: Math.round(total_hours * 100) / 100, // Round to 2 decimal places
+    }));
   }
 }

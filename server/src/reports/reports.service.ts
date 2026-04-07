@@ -461,6 +461,10 @@ export class ReportsService {
       absence: 'Ausencia',
       medical_leave: 'Baja Médica',
       personal_leave: 'Permiso Personal',
+      medical_visit: 'Visita Médica',
+      union_hours: 'Horas Sindicales',
+      leave_of_absence: 'Excedencia',
+      overtime_rest: 'Descanso Exceso Tiempo',
       other: 'Otra',
     };
 
