@@ -25,13 +25,14 @@ model user {
   profiles   profile[]   @relation("PartnerProfiles")
   schedules  schedule[]  @relation("PartnerSchedules")
   terminals  terminal[]  @relation("PartnerTerminals")
+  agreements agreement[] @relation("PartnerAgreements")
 
   @@index([wp_id])
   @@index([wp_email])
 }
 
 model employee {
-  id                String              @id @default(uuid())
+  id                String               @id @default(uuid())
   card_id           String?
   first_name        String
   last_name         String?
@@ -44,27 +45,28 @@ model employee {
   population        String?
   phone_number      String?
   mobile_number     String?
-  email             String?             @unique
-  status            status              @default(active)
-  user_id           String              @unique
+  email             String?              @unique
+  status            status               @default(active)
+  user_id           String               @unique
   partner_id        String
-  created_at        DateTime            @default(now())
-  updated_at        DateTime            @updatedAt
+  created_at        DateTime             @default(now())
+  updated_at        DateTime             @updatedAt
   profile_id        String?
   schedule_id       String?
   location_id       String?
-  is_responsible    Boolean             @default(false)
+  is_responsible    Boolean              @default(false)
   device_pin        String?
   employee_code     String?
-  location          location?           @relation(fields: [location_id], references: [id])
-  partner           user                @relation("PartnerEmployees", fields: [partner_id], references: [id])
-  profile           profile?            @relation(fields: [profile_id], references: [id])
-  schedule          schedule?           @relation(fields: [schedule_id], references: [id])
-  user              user                @relation(fields: [user_id], references: [id])
+  location          location?            @relation(fields: [location_id], references: [id])
+  partner           user                 @relation("PartnerEmployees", fields: [partner_id], references: [id])
+  profile           profile?             @relation(fields: [profile_id], references: [id])
+  schedule          schedule?            @relation(fields: [schedule_id], references: [id])
+  user              user                 @relation(fields: [user_id], references: [id])
   employee_shift    employee_shift[]
   employee_turnover employee_turnover[]
   task_tracker      task_tracker[]
-  incidence         incidence[]         @relation("employeeToincidence")
+  incidence         incidence[]          @relation("employeeToincidence")
+  agreements        employee_agreement[]
 
   @@index([partner_id])
   @@index([location_id], map: "employee_location_id_fkey")
@@ -252,6 +254,48 @@ model task_tracker_shift_clock {
 
   @@index([task_tracker_id])
   @@index([employee_shift_clock_id])
+}
+
+model agreement {
+  id                  String               @id @default(uuid())
+  name                String
+  description         String?
+  saturday_is_holiday Boolean              @default(false)
+  sunday_is_holiday   Boolean              @default(true)
+  partner_id          String
+  created_at          DateTime             @default(now())
+  updated_at          DateTime             @updatedAt
+  partner             user                 @relation("PartnerAgreements", fields: [partner_id], references: [id])
+  employees           employee_agreement[]
+  holidays            agreement_holiday[]
+
+  @@index([partner_id])
+}
+
+model employee_agreement {
+  id           String    @id @default(uuid())
+  employee_id  String
+  agreement_id String
+  created_at   DateTime  @default(now())
+  employee     employee  @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+  agreement    agreement @relation(fields: [agreement_id], references: [id], onDelete: Cascade)
+
+  @@unique([employee_id, agreement_id])
+  @@index([employee_id])
+  @@index([agreement_id])
+}
+
+model agreement_holiday {
+  id           String    @id @default(uuid())
+  date         DateTime
+  description  String?
+  agreement_id String
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  agreement    agreement @relation(fields: [agreement_id], references: [id], onDelete: Cascade)
+
+  @@index([agreement_id])
+  @@index([date])
 }
 
 model task_tracker_history {

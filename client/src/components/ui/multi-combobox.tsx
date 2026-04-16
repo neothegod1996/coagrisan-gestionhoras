@@ -133,9 +133,13 @@ export function MultiCombobox({
                                 );
                             } else {
                                 const currentValue = typeof values === 'string' ? values : '';
+                                const displayLabel = currentValue
+                                    ? (options.find(opt => opt.value === currentValue)?.label
+                                        || allSelectedOptions.find(opt => opt.value === currentValue)?.label)
+                                    : undefined;
                                 return currentValue ? (
                                     <span className="truncate">
-                                        {allSelectedOptions.find(opt => opt.value === currentValue)?.label || currentValue}
+                                        {displayLabel || currentValue}
                                     </span>
                                 ) : (
                                     placeholder

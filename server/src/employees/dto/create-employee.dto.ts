@@ -1,4 +1,4 @@
-import { IsBoolean, IsDateString, IsEmail, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsArray, IsBoolean, IsDateString, IsEmail, IsNotEmpty, IsOptional, IsString } from "class-validator";
 
 export class CreateEmployeeDto {
     @IsNotEmpty()
@@ -68,6 +68,11 @@ export class CreateEmployeeDto {
     @IsNotEmpty()
     @IsString()
     location_id: string;
+
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    agreement_ids?: string[];
 
     @IsOptional()
     @IsBoolean()

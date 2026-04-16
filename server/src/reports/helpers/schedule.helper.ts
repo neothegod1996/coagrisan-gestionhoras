@@ -1,5 +1,50 @@
 import * as dayjs from 'dayjs';
 
+export interface AgreementInfo {
+  agreement: {
+    saturday_is_holiday: boolean;
+    sunday_is_holiday: boolean;
+    holidays: Array<{ date: Date; description: string | null }>;
+  };
+}
+
+/**
+ * Verifica si una fecha es festiva según los convenios del empleado.
+ * Devuelve isHoliday=true si algún convenio marca el día como festivo
+ * (sábado/domingo configurados, o fecha específica en agreement_holiday).
+ */
+export function checkAgreementHoliday(
+  date: Date,
+  agreements: AgreementInfo[],
+): { isHoliday: boolean; holidayName: string | null } {
+  if (!agreements || agreements.length === 0) {
+    return { isHoliday: false, holidayName: null };
+  }
+
+  const dayOfWeek = dayjs(date).day(); // 0=domingo, 6=sábado
+  const dateStr = dayjs(date).format('YYYY-MM-DD');
+
+  for (const { agreement } of agreements) {
+    if (dayOfWeek === 6 && agreement.saturday_is_holiday) {
+      return { isHoliday: true, holidayName: 'Sábado (Festivo)' };
+    }
+    if (dayOfWeek === 0 && agreement.sunday_is_holiday) {
+      return { isHoliday: true, holidayName: 'Domingo (Festivo)' };
+    }
+    const match = agreement.holidays.find(
+      (h) => dayjs(h.date).format('YYYY-MM-DD') === dateStr,
+    );
+    if (match) {
+      return {
+        isHoliday: true,
+        holidayName: match.description || 'Festivo (Convenio)',
+      };
+    }
+  }
+
+  return { isHoliday: false, holidayName: null };
+}
+
 /**
  * Días de la semana en español
  */

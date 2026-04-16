@@ -46,6 +46,7 @@ import { Location } from "@/types/location";
 import { getProfiles } from "@/services/profile";
 import { getSchedules } from "@/services/schedule";
 import { getLocations } from "@/services/location";
+import { getAgreements } from "@/services/agreement";
 import { createEmployee, getEmployee, updateEmployee } from "@/services/employee";
 import RingLoading from "../loading/Ring";
 import dayjs from "dayjs";
@@ -73,9 +74,11 @@ export default function EmployeeForm({
   const [profiles, setProfiles] = useState<PaginatedRequestHandler<Profile>>({ data: [], loading: false, total_pages: 0, total: 0 });
   const [schedules, setSchedules] = useState<PaginatedRequestHandler<Schedule>>({ data: [], loading: false, total_pages: 0, total: 0 });
   const [locations, setLocations] = useState<PaginatedRequestHandler<Location>>({ data: [], loading: false, total_pages: 0, total: 0 });
+  const [agreements, setAgreements] = useState<PaginatedRequestHandler<any>>({ data: [], loading: false, total_pages: 0, total: 0 });
   const [profileSearch, setProfileSearch] = useState("");
   const [scheduleSearch, setScheduleSearch] = useState("");
   const [locationSearch, setLocationSearch] = useState("");
+  const [agreementSearch, setAgreementSearch] = useState("");
 
   const form = useForm<EmployeeFormValues>({
     resolver: zodResolver(employeeFormSchema),
@@ -103,6 +106,7 @@ export default function EmployeeForm({
         profile_id: '',
         schedule_id: '',
         location_id: '',
+        agreement_ids: [],
         is_responsible: false,
       });
     }
@@ -141,6 +145,7 @@ export default function EmployeeForm({
         profile_id: data?.profile?.id || '',
         schedule_id: data?.schedule?.id || '',
         location_id: data?.location?.id || '',
+        agreement_ids: data?.agreements?.map((ea: any) => ea.agreement.id) || [],
         is_responsible: data?.is_responsible || false,
       });
     });
@@ -152,9 +157,10 @@ export default function EmployeeForm({
       ...form.getValues(),
       profile_id: employee?.data?.profile?.id || '',
       schedule_id: employee?.data?.schedule?.id || '',
-      location_id: employee?.data?.location?.id || ''
+      location_id: employee?.data?.location?.id || '',
+      agreement_ids: (employee?.data as any)?.agreements?.map((ea: any) => ea.agreement.id) || [],
     });
-  }, [employee.data, profiles.data, schedules.data, locations.data])
+  }, [employee.data, profiles.data, schedules.data, locations.data, agreements.data])
 
   useEffect(() => {
     if (!isOpen) return;
@@ -185,6 +191,16 @@ export default function EmployeeForm({
       setLocations({ data: data || [], loading: false, total: total || 0, total_pages: total_pages || 1 });
     });
   }, [isOpen, locationSearch]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setAgreements(prev => ({ ...prev, loading: true }));
+    getAgreements({ page: 1, limit: 1000, search: agreementSearch }).then((res) => {
+      const { data, total, total_pages } = res || {};
+      setAgreements({ data: data || [], loading: false, total: total || 0, total_pages: total_pages || 1 });
+    });
+  }, [isOpen, agreementSearch]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -596,85 +612,134 @@ export default function EmployeeForm({
                   <FormField
                     control={form.control}
                     name="schedule_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium text-slate-700">Horario *</FormLabel>
-                        <FormControl>
-                          <MultiCombobox
-                            options={schedules.data.map((schedule) => ({
-                              value: schedule.id,
-                              label: schedule.name
-                            }))}
-                            values={field.value || ""}
-                            onSearchChange={setScheduleSearch}
-                            onValuesChange={field.onChange}
-                            placeholder="Seleccionar horario"
-                            searchPlaceholder="Buscar horarios por nombre"
-                            emptyMessage="No se encontraron horarios"
-                            loading={schedules.loading}
-                            multiple={false}
-                            className="w-full h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      const currentSchedule = employee.data?.schedule;
+                      const scheduleOptions = [
+                        ...(currentSchedule && !schedules.data.find(s => s.id === currentSchedule.id)
+                          ? [{ value: currentSchedule.id, label: currentSchedule.name }] : []),
+                        ...schedules.data.map(s => ({ value: s.id, label: s.name })),
+                      ];
+                      return (
+                        <FormItem>
+                          <FormLabel className="text-sm font-medium text-slate-700">Horario *</FormLabel>
+                          <FormControl>
+                            <MultiCombobox
+                              options={scheduleOptions}
+                              values={field.value || ""}
+                              onSearchChange={setScheduleSearch}
+                              onValuesChange={field.onChange}
+                              placeholder="Seleccionar horario"
+                              searchPlaceholder="Buscar horarios por nombre"
+                              emptyMessage="No se encontraron horarios"
+                              loading={schedules.loading}
+                              multiple={false}
+                              className="w-full h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
 
                   <FormField
                     control={form.control}
                     name="profile_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium text-slate-700">Categoría *</FormLabel>
-                        <FormControl>
-                          <MultiCombobox
-                            options={profiles.data.map((profile) => ({
-                              value: profile.id,
-                              label: profile.name
-                            }))}
-                            values={field.value || ""}
-                            onSearchChange={setProfileSearch}
-                            onValuesChange={field.onChange}
-                            placeholder="Seleccionar categoría"
-                            searchPlaceholder="Buscar categorías por nombre"
-                            emptyMessage="No se encontraron categorías"
-                            loading={profiles.loading}
-                            multiple={false}
-                            className="w-full h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      const currentProfile = employee.data?.profile;
+                      const profileOptions = [
+                        ...(currentProfile && !profiles.data.find(p => p.id === currentProfile.id)
+                          ? [{ value: currentProfile.id, label: currentProfile.name }] : []),
+                        ...profiles.data.map(p => ({ value: p.id, label: p.name })),
+                      ];
+                      return (
+                        <FormItem>
+                          <FormLabel className="text-sm font-medium text-slate-700">Categoría *</FormLabel>
+                          <FormControl>
+                            <MultiCombobox
+                              options={profileOptions}
+                              values={field.value || ""}
+                              onSearchChange={setProfileSearch}
+                              onValuesChange={field.onChange}
+                              placeholder="Seleccionar categoría"
+                              searchPlaceholder="Buscar categorías por nombre"
+                              emptyMessage="No se encontraron categorías"
+                              loading={profiles.loading}
+                              multiple={false}
+                              className="w-full h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
 
                   <FormField
                     control={form.control}
                     name="location_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium text-slate-700">Ubicación *</FormLabel>
-                        <FormControl>
-                          <MultiCombobox
-                            options={locations.data.map((location) => ({
-                              value: location.id,
-                              label: location.name
-                            }))}
-                            values={field.value || ""}
-                            onSearchChange={setLocationSearch}
-                            onValuesChange={field.onChange}
-                            placeholder="Seleccionar ubicación"
-                            searchPlaceholder="Buscar ubicaciones por nombre"
-                            emptyMessage="No se encontraron ubicaciones"
-                            loading={locations.loading}
-                            multiple={false}
-                            className="w-full h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      const currentLocation = employee.data?.location;
+                      const locationOptions = [
+                        ...(currentLocation && !locations.data.find(l => l.id === currentLocation.id)
+                          ? [{ value: currentLocation.id, label: currentLocation.name }] : []),
+                        ...locations.data.map(l => ({ value: l.id, label: l.name })),
+                      ];
+                      return (
+                        <FormItem>
+                          <FormLabel className="text-sm font-medium text-slate-700">Ubicación *</FormLabel>
+                          <FormControl>
+                            <MultiCombobox
+                              options={locationOptions}
+                              values={field.value || ""}
+                              onSearchChange={setLocationSearch}
+                              onValuesChange={field.onChange}
+                              placeholder="Seleccionar ubicación"
+                              searchPlaceholder="Buscar ubicaciones por nombre"
+                              emptyMessage="No se encontraron ubicaciones"
+                              loading={locations.loading}
+                              multiple={false}
+                              className="w-full h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="agreement_ids"
+                    render={({ field }) => {
+                      const currentAgreements = (employee.data as any)?.agreements || [];
+                      const agreementOptions = [
+                        ...currentAgreements
+                          .filter((ea: any) => !agreements.data.find(a => a.id === ea.agreement.id))
+                          .map((ea: any) => ({ value: ea.agreement.id, label: ea.agreement.name })),
+                        ...agreements.data.map(a => ({ value: a.id, label: a.name })),
+                      ];
+                      return (
+                        <FormItem className="md:col-span-2">
+                          <FormLabel className="text-sm font-medium text-slate-700">Convenio(s)</FormLabel>
+                          <FormControl>
+                            <MultiCombobox
+                              options={agreementOptions}
+                              values={Array.isArray(field.value) ? field.value : []}
+                              onSearchChange={setAgreementSearch}
+                              onValuesChange={field.onChange}
+                              placeholder="Seleccionar convenio(s)"
+                              searchPlaceholder="Buscar convenios por nombre"
+                              emptyMessage="No se encontraron convenios"
+                              loading={agreements.loading}
+                              multiple={true}
+                              className="w-full h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                 </div>
               </div>

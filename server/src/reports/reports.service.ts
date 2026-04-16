@@ -26,6 +26,8 @@ import {
 import {
   isWorkingDay,
   getAllDatesInRange,
+  checkAgreementHoliday,
+  AgreementInfo,
 } from './helpers/schedule.helper';
 
 interface ShiftData {
@@ -137,6 +139,22 @@ export class ReportsService {
           include: {
             sessions: true,
             days: true,
+          },
+        },
+        agreements: {
+          include: {
+            agreement: {
+              include: {
+                holidays: {
+                  where: {
+                    date: {
+                      gte: finalStartDate,
+                      lte: finalEndDate,
+                    },
+                  },
+                },
+              },
+            },
           },
         },
         employee_shift: {
@@ -272,7 +290,8 @@ export class ReportsService {
         employeeIncidences,
         limitTo8Hours,
         startDate,
-        endDate
+        endDate,
+        (employee.agreements || []) as AgreementInfo[],
       );
 
       employeeReports.push(employeeReport);
@@ -300,7 +319,8 @@ export class ReportsService {
     incidences: IncidenceData[],
     limitTo8Hours: boolean,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
+    agreements: AgreementInfo[] = [],
   ): EmployeeReport {
     // Generar todas las semanas del rango
     const allWeeks = this.getAllWeeksInRange(startDate, endDate);
@@ -337,7 +357,8 @@ export class ReportsService {
         employee.is_responsible,
         limitTo8Hours,
         startDate,
-        endDate
+        endDate,
+        agreements,
       );
 
       weekReports.push(weekReport);
@@ -367,7 +388,8 @@ export class ReportsService {
     isResponsible: boolean,
     limitTo8Hours: boolean,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
+    agreements: AgreementInfo[] = [],
   ): WeekReport {
     // Obtener el rango de fechas de la semana
     const { start: weekStart, end: weekEnd } = getWeekRange(week, year);
@@ -406,7 +428,8 @@ export class ReportsService {
         dayDate,
         schedule,
         isResponsible,
-        limitTo8Hours
+        limitTo8Hours,
+        agreements,
       );
 
       dayReports.push(dayReport);
@@ -437,7 +460,8 @@ export class ReportsService {
     date: Date,
     schedule: ShiftData['employee']['schedule'],
     isResponsible: boolean,
-    limitTo8Hours: boolean
+    limitTo8Hours: boolean,
+    agreements: AgreementInfo[] = [],
   ): DayReport {
     // Verificar si hay incidencias que afectan este día
     const dayIncidences = incidences.filter((inc) =>
@@ -445,15 +469,19 @@ export class ReportsService {
     );
 
     const hasIncidence = dayIncidences.length > 0;
-    
+
+    // Verificar si el día es festivo según el convenio del empleado
+    const { isHoliday: isAgreementHolidayDay, holidayName: agreementHolidayName } =
+      checkAgreementHoliday(date, agreements);
+
     // Verificar si el día es laborable según el horario
     const isScheduledWorkDay = schedule ? isWorkingDay(date, schedule.days) : true;
-    
+
     // Información de la incidencia principal (si hay múltiples, tomar la primera)
     let incidenceName: string | undefined;
     let incidenceType: string | undefined;
     let incidencePaid: boolean | undefined;
-    
+
     // Diccionario de nombres de tipos de incidencia
     const typeNames: Record<string, string> = {
       holiday: 'Vacaciones',
@@ -469,13 +497,19 @@ export class ReportsService {
     };
 
     if (hasIncidence) {
+      // Las incidencias registradas tienen prioridad
       const mainIncidence = dayIncidences[0];
       incidenceType = mainIncidence.type;
       incidencePaid = mainIncidence.paid;
-      
+
       const typeName = typeNames[mainIncidence.type] || mainIncidence.type;
       const paidStatus = mainIncidence.paid ? 'Pagada' : 'No pagada';
       incidenceName = `${typeName} (${paidStatus})`;
+    } else if (isAgreementHolidayDay) {
+      // Festivo según convenio (sábado/domingo configurado o fecha específica)
+      incidenceType = 'festive';
+      incidencePaid = false;
+      incidenceName = agreementHolidayName || 'Festivo (Convenio)';
     } else if (!isScheduledWorkDay && shifts.length === 0) {
       // Si no hay fichaje y el día no está en el horario, es festivo
       incidenceType = 'festive';
@@ -530,16 +564,27 @@ export class ReportsService {
       dayTotalHours = 8;
     }
 
-    const { normal_hours, extra_hours } = calculateNormalAndExtraHours(dayTotalHours, limitTo8Hours || isResponsible);
+    // Si es festivo según el convenio, todas las horas son extra
+    let normal_hours: number;
+    let extra_hours: number;
+    if (isAgreementHolidayDay && !isResponsible) {
+      normal_hours = 0;
+      extra_hours = dayTotalHours;
+    } else {
+      ({ normal_hours, extra_hours } = calculateNormalAndExtraHours(dayTotalHours, limitTo8Hours || isResponsible));
+    }
 
     // Determinar información del horario
     let scheduleInfo = 'Sin horario';
     if (schedule) {
       scheduleInfo = schedule.name;
     }
-    
-    // Si hay incidencia o es festivo, mostrar esa información
-    const hasSpecialDay = hasIncidence || (!isScheduledWorkDay && shifts.length === 0);
+
+    // Si hay incidencia, festivo de convenio o día no laborable, mostrar esa información
+    const hasSpecialDay =
+      hasIncidence ||
+      isAgreementHolidayDay ||
+      (!isScheduledWorkDay && shifts.length === 0);
     if (hasSpecialDay && incidenceName) {
       scheduleInfo = incidenceName;
     }

@@ -126,6 +126,18 @@ function EmployeeManagement() {
           </div>
         </Link>
 
+        <Link href="/agreements" className="bg-brand-primary-50 hover:bg-brand-primary-400 rounded-md p-4 transition-colors group border border-slate-200">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-brand-primary rounded-md flex items-center justify-center group-hover:bg-brand-primary-600 transition-colors">
+              <CalendarDays className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h3 className="font-medium text-slate-900">Convenios</h3>
+              <p className="text-xs text-slate-600">Calendarios y festivos</p>
+            </div>
+          </div>
+        </Link>
+
         <Link href="/calendar" className="bg-brand-primary-50 hover:bg-brand-primary-400 rounded-md p-4 transition-colors group border border-slate-200">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-brand-primary rounded-md flex items-center justify-center group-hover:bg-brand-primary-600 transition-colors">

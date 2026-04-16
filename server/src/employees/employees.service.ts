@@ -15,6 +15,8 @@ export class EmployeesService {
       throw new HttpException('"partner_id" field is required', HttpStatus.BAD_REQUEST);
     }
     const partner_id = user.role === role.admin ? body.partner_id : user.partner_id;
+    const { agreement_ids, ...rest } = body;
+
     let [findUser, findEmployee] = await Promise.all([
       this.prisma.user.findUnique({
         where: {
@@ -44,10 +46,13 @@ export class EmployeesService {
     }
     findEmployee = await this.prisma.employee.create({
       data: {
-        ...body,
+        ...rest,
         alias: body.first_name.toUpperCase(),
         partner_id: partner_id!,
-        user_id: findUser.id
+        user_id: findUser.id,
+        agreements: agreement_ids?.length ? {
+          create: agreement_ids.map(id => ({ agreement_id: id })),
+        } : undefined,
       },
     })
     return findEmployee;
@@ -69,7 +74,6 @@ export class EmployeesService {
       if (userDb?.partner_id) {
 
         if (user.role === role.manager) {
-          // Buscamos los users que tengan el mismo partner_id
           const partnerUsers = await this.prisma.user.findMany({
             where: {
               partner_id: userDb.partner_id,
@@ -81,7 +85,6 @@ export class EmployeesService {
           const userIds = partnerUsers.map(u => u.id);
           where.user_id = { in: userIds };
         } else {
-          // Admin
           where.partner_id = userDb.partner_id;
         }
       }
@@ -137,6 +140,11 @@ export class EmployeesService {
           profile: { select: { id: true, name: true } },
           location: { select: { id: true, name: true } },
           schedule: { select: { id: true, name: true } },
+          agreements: {
+            select: {
+              agreement: { select: { id: true, name: true } },
+            },
+          },
         }
       }),
       this.prisma.employee.count({ where }),
@@ -161,6 +169,7 @@ export class EmployeesService {
         alias: true,
         card_id: true,
         employee_code: true,
+        device_pin: true,
         first_name: true,
         last_name: true,
         dni: true,
@@ -191,6 +200,13 @@ export class EmployeesService {
             name: true
           }
         },
+        agreements: {
+          select: {
+            agreement: {
+              select: { id: true, name: true }
+            }
+          }
+        },
       }
     });
     if (!employee) {
@@ -200,14 +216,22 @@ export class EmployeesService {
   }
 
   async update(id: string, body: UpdateEmployeeDto, user: User) {
-    const { partner_id: _, ...data } = body;
+    const { partner_id: _, agreement_ids, ...data } = body;
     const partner_id = user.partner_id;
     let where: any = { id };
     if (partner_id) where.partner_id = partner_id;
 
     const employee = await this.prisma.employee.update({
       where,
-      data
+      data: {
+        ...data,
+        ...(agreement_ids !== undefined && {
+          agreements: {
+            deleteMany: {},
+            create: agreement_ids.map(agId => ({ agreement_id: agId })),
+          },
+        }),
+      },
     });
     return employee;
   }

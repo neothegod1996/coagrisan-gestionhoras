@@ -2,6 +2,7 @@ import { PaginationResponse, Response } from ".";
 import { Location } from "./location";
 import { Profile } from "./profile";
 import { Schedule } from "./schedule";
+import { Agreement } from "./agreement";
 
 export interface Employee {
   id: string;
@@ -37,6 +38,7 @@ export interface FullEmployee {
   schedule: Schedule;
   location: Location;
   is_responsible: boolean;
+  agreements: { agreement: Pick<Agreement, 'id' | 'name'> }[];
 }
 
 export interface EmployeeFormData {

@@ -20,4 +20,5 @@ export const employeeFormSchema = z.object({
     location_id: z.string().min(1, "La ubicación es obligatoria"),
     device_pin: z.string().optional(),
     is_responsible: z.boolean().optional(),
+    agreement_ids: z.array(z.string()).optional(),
 });

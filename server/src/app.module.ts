@@ -18,6 +18,7 @@ import { PartnersModule } from './partners/partners.module';
 import { EmployeeShiftClockModule } from './employee-shift-clock/employee-shift-clock.module';
 import { ZktecoModule } from './zkteco/zkteco.module';
 import { EmployeeShiftClockModuleById } from './employee-shift-clock-by-id/employee-shift-clock-by-id.module';
+import { AgreementsModule } from './agreements/agreements.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { EmployeeShiftClockModuleById } from './employee-shift-clock-by-id/emplo
     PartnersModule,
     EmployeeShiftClockModule,
     ZktecoModule,
+    AgreementsModule,
   ],
   controllers: [AppController],
   providers: [

@@ -6,7 +6,7 @@ import * as dayjs from 'dayjs';
 export class ZktecoService {
   private readonly logger = new Logger(ZktecoService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async processAttendanceLogs(serialNumber: string, rawData: string) {
     const lines = rawData.split('\n').map(l => l.trim()).filter(l => l.length > 0);
@@ -75,15 +75,15 @@ export class ZktecoService {
       if (runningTask) {
         // --- CLOCK OUT ---
         const duration = dayjs(time).diff(dayjs(runningTask.start_time), 'seconds');
-        
+
         // Actualizar tarea
         await tx.task_tracker.update({
           where: { id: runningTask.id },
-          data: { 
-            end_time: time, 
-            duration, 
-            status: 'completed', 
-            updated_at: new Date() 
+          data: {
+            end_time: time,
+            duration,
+            status: 'completed',
+            updated_at: new Date()
           },
         });
 
@@ -147,8 +147,8 @@ export class ZktecoService {
     });
 
     if (!shift) {
-      const scheduleSession = employee.schedule_id 
-        ? await this.getClosestScheduleSession(employee.schedule_id, time) 
+      const scheduleSession = employee.schedule_id
+        ? await this.getClosestScheduleSession(employee.schedule_id, time)
         : null;
 
       shift = await tx.employee_shift.create({
