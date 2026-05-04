@@ -23,7 +23,7 @@ export const employeeFormSchema = z.object({
     agreement_ids: z.array(z.string()).optional(),
     schedules_history: z.array(z.object({
         schedule_id: z.string().min(1, "El horario es obligatorio"),
-        start_date: z.date({ required_error: "La fecha de inicio es obligatoria" }),
+        start_date: z.date(),
         end_date: z.date().nullable().optional(),
     })).optional(),
     status: z.enum(['active', 'inactive']).optional(),

@@ -50,6 +50,13 @@ export interface FullEmployee {
   agreements: { agreement: Pick<Agreement, 'id' | 'name'> }[];
   status: 'active' | 'inactive';
   employee_turnover?: Turnover[];
+  schedules_history?: {
+    id: string;
+    start_date: Date | string;
+    end_date?: Date | string | null;
+    schedule_id: string;
+    schedule?: Schedule;
+  }[];
 }
 
 export interface EmployeeFormData {

@@ -746,7 +746,7 @@ export default function EmployeeForm({
                                         </PopoverTrigger>
                                         <PopoverContent className="w-auto p-0" align="start">
                                           <div className="p-2 border-b border-slate-100 flex justify-end">
-                                            <Button variant="ghost" size="xs" onClick={() => subField.onChange(null)}>Limpiar</Button>
+                                            <Button variant="ghost" size="sm" onClick={() => subField.onChange(null)}>Limpiar</Button>
                                           </div>
                                           <CalendarComponent
                                             mode="single"
@@ -1089,7 +1089,7 @@ export default function EmployeeForm({
                               )}
                             </td>
                             <td className="px-4 py-3 font-medium text-slate-800 capitalize">
-                              {item.reason.replace(/_/g, ' ')}
+                              {item.reason ? item.reason.replace(/_/g, ' ') : "-"}
                             </td>
                             <td className="px-4 py-3 text-slate-500 italic max-w-[300px] truncate">
                               {item.comment || "-"}
@@ -1152,7 +1152,7 @@ export default function EmployeeForm({
                                 )}
                               </td>
                               <td className="px-4 py-4 capitalize font-medium">
-                                {item.reason.replace(/_/g, ' ')}
+                                {item.reason ? item.reason.replace(/_/g, ' ') : "-"}
                               </td>
                               <td className="px-4 py-4 text-slate-600 leading-relaxed">
                                 {item.comment || "Sin comentarios adicionales."}

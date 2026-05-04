@@ -10,6 +10,7 @@ import {
   User,
 } from "lucide-react";
 import { FullEmployee } from "@/types/employee";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge as BadgeComponent } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
