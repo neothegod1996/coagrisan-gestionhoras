@@ -1,14 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { TaskTrackerService } from '../employees/task-tracker/task-tracker.service';
 import * as dayjs from 'dayjs';
 
 @Injectable()
 export class ZktecoService {
   private readonly logger = new Logger(ZktecoService.name);
 
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly taskTrackerService: TaskTrackerService
+  ) { }
 
-  async processAttendanceLogs(serialNumber: string, rawData: string) {
+  async processAttendanceLogs(serialNumber: string, rawData: string, ipAddress?: string) {
     const lines = rawData.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
     for (const line of lines) {
@@ -17,15 +21,18 @@ export class ZktecoService {
 
       const devicePin = parts[0];
       const timeString = parts[1];
+      const status = parts[2]; // 0: Check-In, 1: Check-Out (estándar ADMS)
+      const verifyMode = parts[3];
+
       const time = dayjs(timeString).toDate();
 
-      console.log(`Received log from device ${serialNumber}: PIN=${devicePin}, Time=${time}`);
+      this.logger.log(`Log from SN ${serialNumber}: PIN=${devicePin}, Time=${time}, Status=${status}, Mode=${verifyMode}, IP=${ipAddress}`);
 
-      await this.handleZktecoClocking(devicePin, time, serialNumber);
+      await this.handleZktecoClocking(devicePin, time, serialNumber, status, ipAddress);
     }
   }
 
-  private async handleZktecoClocking(devicePin: string, time: Date, serialNumber: string) {
+  private async handleZktecoClocking(devicePin: string, time: Date, serialNumber: string, deviceStatus?: string, ipAddress?: string) {
     // 1. Identificación del empleado (Lógica de tu primer script)
     let employee = await this.prisma.employee.findFirst({
       where: { device_pin: devicePin, status: 'active' },
@@ -57,9 +64,8 @@ export class ZktecoService {
     const terminal = await this.getTerminal(serialNumber, employee.partner_id);
     if (!terminal) return;
 
-    // 3. Lógica de Sincronización (Similar a tu TaskTrackerService)
+    // 3. Decisión de Marcación (Basada en dispositivo o alternancia)
     await this.prisma.$transaction(async (tx) => {
-      // ¿Hay una tarea/jornada abierta para este empleado?
       const runningTask = await tx.task_tracker.findFirst({
         where: {
           employee_id: employee.id,
@@ -69,66 +75,112 @@ export class ZktecoService {
         orderBy: { created_at: 'desc' },
       });
 
-      // Obtener o Crear el Shift del día
       const employeeShift = await this.getOrCreateShift(tx, employee, time);
 
-      if (runningTask) {
-        // --- CLOCK OUT ---
-        const duration = dayjs(time).diff(dayjs(runningTask.start_time), 'seconds');
+      // Determinar acción
+      let action: 'IN' | 'OUT' | 'NONE' = 'NONE';
+      
+      if (deviceStatus === '0') { // Check-In explícito
+        action = runningTask ? 'NONE' : 'IN';
+      } else if (deviceStatus === '1') { // Check-Out explícito
+        action = runningTask ? 'OUT' : 'NONE';
+      } else { // Sin estado claro -> Alternar (Toggle)
+        action = runningTask ? 'OUT' : 'IN';
+      }
 
-        // Actualizar tarea
+      if (action === 'NONE') {
+        this.logger.log(`Action ${deviceStatus === '0' ? 'IN' : 'OUT'} ignored for employee ${employee.id} (already in that state)`);
+        return;
+      }
+
+      // --- SNAPSHOTS AUDIT ---
+      const snapshots = await this.taskTrackerService.getTrackSnapshots(employee.id, time);
+
+      if (action === 'OUT' && runningTask) {
+        // --- CLOCK OUT ---
+        const roundedEndTime = this.roundEndTime(time);
+        const duration = dayjs(roundedEndTime).diff(dayjs(runningTask.start_time), 'seconds');
+
         await tx.task_tracker.update({
           where: { id: runningTask.id },
           data: {
-            end_time: time,
-            duration,
+            end_time: roundedEndTime,
+            duration: Math.max(0, duration),
             status: 'completed',
+            ip_address: ipAddress,
+            terminal_id: terminal.id,
             updated_at: new Date()
           },
         });
 
-        // Crear marcación de salida
         await tx.employee_shift_clock.create({
           data: {
             employee_shift_id: employeeShift.id,
             terminal_id: terminal.id,
-            time: time,
-            status: 'pending', // O 'approved' según tu regla de negocio
+            time: time, // Guardamos la hora REAL del fichaje en el log
+            status: 'pending',
             session_id: runningTask.id,
+            ip_address: ipAddress,
             created_at: time,
           },
         });
 
-        this.logger.log(`Clock OUT: Employee ${employee.id} finished task ${runningTask.id}`);
+        this.logger.log(`Clock OUT: Employee ${employee.id} finished task ${runningTask.id} (Rounded: ${roundedEndTime}, Duration: ${duration}s)`);
       } else {
         // --- CLOCK IN ---
-        // Crear nueva tarea
+        const roundedStartTime = this.roundStartTime(time);
         const newTask = await tx.task_tracker.create({
           data: {
             employee_id: employee.id,
             name: 'Jornada ZKTeco',
-            description: `Iniciado automáticamente desde terminal ${serialNumber}`,
-            start_time: time,
+            description: `Iniciado automáticamente (SN: ${serialNumber}, Status: ${deviceStatus || 'Toggle'})`,
+            start_time: roundedStartTime,
             status: 'running',
+            ip_address: ipAddress,
+            terminal_id: terminal.id,
+            schedule_snapshot_id: snapshots.activeScheduleId,
+            schedule_snapshot_name: snapshots.activeScheduleName,
+            agreement_snapshot_id: snapshots.agreementId,
+            agreement_snapshot_name: snapshots.agreementName,
             created_at: time,
           },
         });
 
-        // Crear marcación de entrada
         await tx.employee_shift_clock.create({
           data: {
             employee_shift_id: employeeShift.id,
             terminal_id: terminal.id,
-            time: time,
+            time: time, // Guardamos la hora REAL del fichaje
             status: 'pending',
             session_id: newTask.id,
+            ip_address: ipAddress,
             created_at: time,
           },
         });
 
-        this.logger.log(`Clock IN: Employee ${employee.id} started new task ${newTask.id}`);
+        this.logger.log(`Clock IN: Employee ${employee.id} started new task ${newTask.id} (Rounded: ${roundedStartTime})`);
       }
     });
+  }
+
+  private roundStartTime(date: Date): Date {
+    const d = dayjs(date);
+    const minutes = d.minute();
+    if (minutes <= 15) {
+      return d.startOf('hour').toDate();
+    } else {
+      return d.add(1, 'hour').startOf('hour').toDate();
+    }
+  }
+
+  private roundEndTime(date: Date): Date {
+    const d = dayjs(date);
+    const minutes = d.minute();
+    if (minutes >= 45) {
+      return d.add(1, 'hour').startOf('hour').toDate();
+    } else {
+      return d.startOf('hour').toDate();
+    }
   }
 
   // --- Helpers Reutilizables ---

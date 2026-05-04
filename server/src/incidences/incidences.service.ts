@@ -34,6 +34,13 @@ export class IncidencesService {
 
     const partner_id = user.role === role.admin ? body.partner_id : user.partner_id;
 
+    // Force incidence to be for the current employee if role is employee
+    if (user.role === role.employee) {
+      body.is_global = false;
+      body.employee_ids = [user.employee?.id!];
+      body.profile_ids = [];
+    }
+
     const { employee_ids, profile_ids, ...data } = body;
     const employees = (body.employee_ids) ? await this.prisma.employee.findMany({
       where: {

@@ -15,10 +15,10 @@ export class TaskTrackerController {
   constructor(private readonly taskTrackerService: TaskTrackerService) {}
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(role.employee, role.manager)
+  @Roles(role.employee, role.manager, role.admin)
   @Post()
   async create(@Req() req: RequestWithUser, @Res() res: Response, @Body() body: CreateTaskTrackerDto) {
-    const taskTracker = await this.taskTrackerService.create(body, req.user);
+    const taskTracker = await this.taskTrackerService.create(body, req.user, req.ip);
     return res.status(201).json({
       success: true,
       data: taskTracker,
@@ -27,7 +27,7 @@ export class TaskTrackerController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(role.employee, role.manager)
+  @Roles(role.employee, role.manager, role.admin)
   @Get()
   async findAll(@Res() res: Response, @Req() req: RequestWithUser, @Query() query: PaginationTaskTrackerDto) {
     const taskTrackers = await this.taskTrackerService.findAll(query, req.user);
@@ -39,7 +39,7 @@ export class TaskTrackerController {
   }
   
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(role.employee, role.manager)
+  @Roles(role.employee, role.manager, role.admin)
   @Get(':id')
   async findOne(@Res() res: Response, @Param('id') id: string, @Req() req: RequestWithUser) {
     const taskTracker = await this.taskTrackerService.findOne(id, req.user);
@@ -51,7 +51,7 @@ export class TaskTrackerController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(role.employee, role.manager)
+  @Roles(role.employee, role.manager, role.admin)
   @Put(':id')
   async update(@Res() res: Response, @Param('id') id: string, @Body() body: UpdateTaskTrackerDto, @Req() req: RequestWithUser) {
     const taskTracker = await this.taskTrackerService.update(id, body, req.user);

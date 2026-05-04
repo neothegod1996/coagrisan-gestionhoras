@@ -87,7 +87,8 @@ export default function TaskTrackerList({}: TaskTrackerListProps) {
           running.add(task.id);
           const startTime = new Date(task.start_time).getTime();
           const currentTime = Date.now();
-          timers.set(task.id, Math.floor((currentTime - startTime) / 1000));
+          const diff = Math.floor((currentTime - startTime) / 1000);
+          timers.set(task.id, diff > 0 ? diff : 0);
         }
       });
       
@@ -108,8 +109,11 @@ export default function TaskTrackerList({}: TaskTrackerListProps) {
       setTaskTimers((prev) => {
         const newTimers = new Map(prev);
         runningTasks.forEach((taskId) => {
-          const currentTime = newTimers.get(taskId) || 0;
-          newTimers.set(taskId, currentTime + 1);
+          const startTime = tasks.data.find(t => t.id === taskId)?.start_time;
+          if (startTime) {
+              const diff = Math.floor((Date.now() - new Date(startTime).getTime()) / 1000);
+              newTimers.set(taskId, diff > 0 ? diff : 0);
+          }
         });
         return newTimers;
       });
@@ -177,10 +181,17 @@ export default function TaskTrackerList({}: TaskTrackerListProps) {
     task_id: null,
   });
 
-  const formatTime = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
+  const formatTime = (seconds: number, capTo8h: boolean = true): string => {
+    let displaySeconds = seconds;
+    
+    // Tope visual de 8 horas
+    if (capTo8h && seconds > 8 * 3600) {
+      displaySeconds = 8 * 3600;
+    }
+
+    const hours = Math.floor(displaySeconds / 3600);
+    const minutes = Math.floor((displaySeconds % 3600) / 60);
+    const secs = displaySeconds % 60;
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
@@ -289,6 +300,7 @@ export default function TaskTrackerList({}: TaskTrackerListProps) {
                   <TableHead className="font-semibold text-center">Inicio</TableHead>
                   <TableHead className="font-semibold text-center">Fin</TableHead>
                   <TableHead className="font-semibold text-center">Tiempo</TableHead>
+                  <TableHead className="font-semibold text-center">Referencia</TableHead>
                   <TableHead className="font-semibold text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -337,6 +349,30 @@ export default function TaskTrackerList({}: TaskTrackerListProps) {
                               ? formatTime(task.duration)
                               : "00:00:00"}
                           </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex flex-col gap-1 items-center justify-center min-w-[120px]">
+                          {task.schedule_snapshot_name ? (
+                            <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200 text-[10px] py-0 px-2 whitespace-nowrap font-medium">
+                              📅 {task.schedule_snapshot_name}
+                            </Badge>
+                          ) : task.schedule_snapshot ? (
+                            <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200 text-[10px] py-0 px-2 whitespace-nowrap font-medium">
+                              📅 {task.schedule_snapshot.name}
+                            </Badge>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 italic">No Schedule</span>
+                          )}
+                          {task.agreement_snapshot_name ? (
+                            <Badge variant="outline" className="bg-brand-primary/5 text-brand-primary border-brand-primary/10 text-[10px] py-0 px-2 whitespace-nowrap font-medium">
+                              📜 {task.agreement_snapshot_name}
+                            </Badge>
+                          ) : task.agreement_snapshot && (
+                            <Badge variant="outline" className="bg-brand-primary/5 text-brand-primary border-brand-primary/10 text-[10px] py-0 px-2 whitespace-nowrap font-medium">
+                              📜 {task.agreement_snapshot.name}
+                            </Badge>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">

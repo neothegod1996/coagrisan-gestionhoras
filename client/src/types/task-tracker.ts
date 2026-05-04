@@ -11,6 +11,18 @@ export interface TaskTracker {
   created_at: string;
   updated_at: string;
   employee_id: string;
+  schedule_snapshot_id?: string;
+  agreement_snapshot_id?: string;
+  schedule_snapshot_name?: string;
+  agreement_snapshot_name?: string;
+  schedule_snapshot?: {
+    id: string;
+    name: string;
+  };
+  agreement_snapshot?: {
+    id: string;
+    name: string;
+  };
 }
 
 export type TaskStatus = "pending" | "running" | "completed" | "paused";
@@ -26,6 +38,9 @@ export interface CreateTaskTrackerRequest {
   name: string;
   description?: string;
   employee_id: string;
+  latitude?: number;
+  longitude?: number;
+  terminal_id?: string;
 }
 
 export interface UpdateTaskTrackerRequest {

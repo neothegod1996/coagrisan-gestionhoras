@@ -18,6 +18,7 @@ import Image from "next/image";
 const VISIBLE_MODULES = {
   [AuthRoleEnum.Admin]: [
     EmployeeManagement,
+    ManagerEmployee,
     Reports,
     Terminals
   ],

@@ -16,8 +16,10 @@ async function bootstrap() {
       transform: true,
     }),
   );
-  app.use(text({ type: 'text/plain' }));
-  app.setGlobalPrefix("api");
+  app.use(text({ type: ['text/plain', 'text/html', 'application/octet-stream'] }));
+  app.setGlobalPrefix("api", {
+    exclude: ['iclock/(.*)']
+  });
   app.useGlobalFilters(new AllExceptionsFilter());
   app.enableCors({
     origin: "*",

@@ -17,6 +17,15 @@ export interface Employee {
   schedule: Schedule;
 }
 
+export interface Turnover {
+  id: string;
+  date: Date;
+  type: 'hiring' | 'departure';
+  reason?: string;
+  comment?: string;
+  created_at: Date;
+}
+
 export interface FullEmployee {
   id: string;
   card_id: string;
@@ -39,6 +48,8 @@ export interface FullEmployee {
   location: Location;
   is_responsible: boolean;
   agreements: { agreement: Pick<Agreement, 'id' | 'name'> }[];
+  status: 'active' | 'inactive';
+  employee_turnover?: Turnover[];
 }
 
 export interface EmployeeFormData {
@@ -60,6 +71,10 @@ export interface EmployeeFormData {
   schedule_id: string;
   location_id: string;
   is_responsible?: boolean;
+  status?: 'active' | 'inactive';
+  turnover_date?: Date;
+  turnover_reason?: string;
+  turnover_comment?: string;
 }
 
 export interface OnboardingOffboardingHistory {

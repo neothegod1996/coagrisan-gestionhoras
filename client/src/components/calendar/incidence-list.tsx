@@ -314,7 +314,7 @@ export default function IncidenceList({ }: Props) {
                                     <TableHead className="font-semibold">Estado</TableHead>
                                     <TableHead className="font-semibold">Empleados</TableHead>
                                     <TableHead className="font-semibold">Categorías</TableHead>
-                                    <TableHead className="font-semibold text-right">Acciones</TableHead>
+                                    {isAdminOrManager && <TableHead className="font-semibold text-right">Acciones</TableHead>}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -411,49 +411,51 @@ export default function IncidenceList({ }: Props) {
                                                     </div>
                                                 )}
                                             </TableCell>
-                                            <TableCell className="text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => setShowForm({ isOpen: true, type: "edit", incidence_id: incidence.id })}
-                                                        className="rounded-md p-2"
-                                                    >
-                                                        <Edit className="w-4 h-4" />
-                                                    </Button>
-                                                    <AlertDialog>
-                                                        <AlertDialogTrigger asChild>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="rounded-md p-2 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </Button>
-                                                        </AlertDialogTrigger>
-                                                        <AlertDialogContent className="rounded-lg">
-                                                            <AlertDialogHeader>
-                                                                <AlertDialogTitle>¿Eliminar incidencia?</AlertDialogTitle>
-                                                                <AlertDialogDescription>
-                                                                    Esta acción no se puede deshacer. Se eliminará permanentemente
-                                                                    la incidencia {incidence.description} y todos sus datos asociados.
-                                                                </AlertDialogDescription>
-                                                            </AlertDialogHeader>
-                                                            <AlertDialogFooter>
-                                                                <AlertDialogCancel className="rounded-md">
-                                                                    Cancelar
-                                                                </AlertDialogCancel>
-                                                                <AlertDialogAction
-                                                                    onClick={() => handleDeleteIncidence(incidence.id)}
-                                                                    className="rounded-md bg-red-600 hover:bg-red-700"
+                                            {isAdminOrManager && (
+                                                <TableCell className="text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => setShowForm({ isOpen: true, type: "edit", incidence_id: incidence.id })}
+                                                            className="rounded-md p-2"
+                                                        >
+                                                            <Edit className="w-4 h-4" />
+                                                        </Button>
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="rounded-md p-2 text-red-600 hover:text-red-700 hover:bg-red-50"
                                                                 >
-                                                                    Eliminar
-                                                                </AlertDialogAction>
-                                                            </AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
-                                                </div>
-                                            </TableCell>
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </Button>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent className="rounded-lg">
+                                                                <AlertDialogHeader>
+                                                                    <AlertDialogTitle>¿Eliminar incidencia?</AlertDialogTitle>
+                                                                    <AlertDialogDescription>
+                                                                        Esta acción no se puede deshacer. Se eliminará permanentemente
+                                                                        la incidencia {incidence.description} y todos sus datos asociados.
+                                                                    </AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter>
+                                                                    <AlertDialogCancel className="rounded-md">
+                                                                        Cancelar
+                                                                    </AlertDialogCancel>
+                                                                    <AlertDialogAction
+                                                                        onClick={() => handleDeleteIncidence(incidence.id)}
+                                                                        className="rounded-md bg-red-600 hover:bg-red-700"
+                                                                    >
+                                                                        Eliminar
+                                                                    </AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    </div>
+                                                </TableCell>
+                                            )}
                                         </TableRow>
                                     ))
                                 )}

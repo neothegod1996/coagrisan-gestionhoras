@@ -11,6 +11,7 @@ export const scheduleSessionSchema = z.object({
   has_break: z.boolean(),
   break_start_time: z.string().optional(),
   break_end_time: z.string().optional(),
+  extend_for_break: z.boolean().optional(),
 });
 
 export const scheduleFormSchema = z.object({

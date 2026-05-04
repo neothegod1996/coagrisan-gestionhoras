@@ -25,4 +25,14 @@ export class CreateTaskTrackerDto {
   @IsInt()
   @Min(0)
   duration?: number;
+
+  @IsOptional()
+  latitude?: number;
+
+  @IsOptional()
+  longitude?: number;
+
+  @IsOptional()
+  @IsString()
+  terminal_id?: string;
 }

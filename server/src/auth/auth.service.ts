@@ -60,22 +60,44 @@ export class AuthService {
         },
       });
 
-      if ([role.employee, role.manager].includes(WpRoles[payload?.role])) {
+      // Ensure EVERYONE gets an employee record (needed for TaskTracker)
+      if (true) { // All roles
         const partner = await prisma.user.findFirst({
-          where: { partner_id: payload?.partner_id, role: role.manager },
+          where: { 
+            OR: [
+              { partner_id: payload?.partner_id, role: role.manager },
+              { id: user.id, role: role.manager } // The user might be the manager themselves
+            ]
+          },
           select: { id: true }
         });
-        if (!partner) {
-          throw new HttpException('WP token: no se encontró partner', HttpStatus.UNAUTHORIZED);
+
+        // Use the user's own id if they are admin or if no partner found
+        const finalPartnerId = partner?.id || (user.role === role.admin ? user.id : null);
+
+        if (finalPartnerId) {
+          const newEmployee = await prisma.employee.create({
+            data: {
+              user_id: user.id,
+              first_name: name.split(' ')[0],
+              last_name: name.split(' ').slice(1).join(' '),
+              email,
+              alias: name.toUpperCase(),
+              partner_id: finalPartnerId,
+              status: 'active',
+            },
+          });
+
+          // Create initial turnover (Alta)
+          await prisma.employee_turnover.create({
+            data: {
+              employee_id: newEmployee.id,
+              date: new Date(),
+              type: 'hiring',
+              reason: 'Alta automática desde registro/login',
+            }
+          });
         }
-        await prisma.employee.create({
-          data: {
-            user_id: user.id,
-            first_name: name,
-            email,
-            partner_id: partner.id,
-          },
-        });
       }
     } else {
       const updateUser = await prisma.user.update({
@@ -88,24 +110,42 @@ export class AuthService {
         },
         select: { id: true, role: true, employee: { select: { id: true }}}
       });
-      if ([role.employee, role.manager].includes(user.role as any) && !updateUser?.employee?.id) {
+      if (!updateUser?.employee?.id) {
         const partner = await prisma.user.findFirst({
-          where: { partner_id: payload?.partner_id, role: role.manager },
+          where: { 
+            OR: [
+              { partner_id: payload?.partner_id, role: role.manager },
+              { id: updateUser.id, role: role.manager }
+            ]
+          },
           select: { id: true }
         });
-        if (!partner) {
-          throw new HttpException('WP token: no se encontró partner', HttpStatus.UNAUTHORIZED);
+
+        const finalPartnerId = partner?.id || (updateUser.role === role.admin ? updateUser.id : null);
+
+        if (finalPartnerId) {
+          const newEmployee = await prisma.employee.create({
+            data: {
+              user_id: updateUser.id,
+              first_name: name.split(' ')[0],
+              last_name: name.split(' ').slice(1).join(' '),
+              email: email ?? user.wp_email,
+              alias: name.toUpperCase(),
+              partner_id: finalPartnerId,
+              status: 'active',
+            },
+          });
+
+          // Create initial turnover (Alta)
+          await prisma.employee_turnover.create({
+            data: {
+              employee_id: newEmployee.id,
+              date: new Date(),
+              type: 'hiring',
+              reason: 'Alta automática desde login (Perfil faltante)',
+            }
+          });
         }
-        await prisma.employee.create({
-          data: {
-            user_id: updateUser.id,
-            first_name: name.split(' ')[0],
-            last_name: name.split(' ').slice(1).join(' '),
-            email: email ?? user.wp_email,
-            alias: name.toUpperCase(),
-            partner_id: partner.id,
-          },
-        });
       }
     }
 

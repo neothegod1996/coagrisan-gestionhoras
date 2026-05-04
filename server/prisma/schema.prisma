@@ -67,6 +67,7 @@ model employee {
   task_tracker      task_tracker[]
   incidence         incidence[]          @relation("employeeToincidence")
   agreements        employee_agreement[]
+  schedules_history employee_schedule[]
 
   @@index([partner_id])
   @@index([location_id], map: "employee_location_id_fkey")
@@ -79,6 +80,8 @@ model employee_turnover {
   date        DateTime
   type        turnover_type
   employee_id String
+  reason      String?
+  comment     String?
   created_at  DateTime      @default(now())
   updated_at  DateTime      @updatedAt
   employee    employee      @relation(fields: [employee_id], references: [id])
@@ -111,6 +114,8 @@ model schedule {
   partner     user               @relation("PartnerSchedules", fields: [partner_id], references: [id])
   days        schedule_days[]
   sessions    schedule_session[]
+  employee_history       employee_schedule[]
+  task_trackers_snapshot task_tracker[]      @relation("TaskScheduleSnapshot")
 
   @@index([partner_id])
 }
@@ -135,6 +140,7 @@ model schedule_session {
   has_break        Boolean          @default(false)
   break_start_time DateTime?
   break_end_time   DateTime?
+  extend_for_break Boolean?         @default(false)
   schedule_id      String
   created_at       DateTime         @default(now())
   updated_at       DateTime         @updatedAt
@@ -169,6 +175,7 @@ model employee_shift_clock {
   updated_at         DateTime                    @updatedAt
   status             employee_shift_clock_status @default(pending)
   session_id         String                      @default("default")
+  ip_address         String?
   employee_shift     employee_shift              @relation(fields: [employee_shift_id], references: [id], onDelete: Cascade)
   terminal           terminal                    @relation(fields: [terminal_id], references: [id])
   task_tracker_links task_tracker_shift_clock[]
@@ -241,6 +248,20 @@ model task_tracker {
   employee                  employee                   @relation(fields: [employee_id], references: [id])
   task_tracker_shift_clocks task_tracker_shift_clock[]
 
+  // Snapshots at tracking time
+  schedule_snapshot_id   String?
+  agreement_snapshot_id  String?
+  schedule_snapshot_name  String?
+  agreement_snapshot_name String?
+  schedule_snapshot      schedule?  @relation("TaskScheduleSnapshot", fields: [schedule_snapshot_id], references: [id])
+  agreement_snapshot     agreement? @relation("TaskAgreementSnapshot", fields: [agreement_snapshot_id], references: [id])
+
+  // Location and Device info
+  latitude   Float?
+  longitude  Float?
+  ip_address String?
+  terminal_id String?
+
   @@index([employee_id])
 }
 
@@ -267,7 +288,8 @@ model agreement {
   updated_at          DateTime             @updatedAt
   partner             user                 @relation("PartnerAgreements", fields: [partner_id], references: [id])
   employees           employee_agreement[]
-  holidays            agreement_holiday[]
+  holidays               agreement_holiday[]
+  task_trackers_snapshot task_tracker[]      @relation("TaskAgreementSnapshot")
 
   @@index([partner_id])
 }
@@ -309,6 +331,22 @@ model task_tracker_history {
 
   @@index([task_tracker_id])
   @@index([user_id])
+}
+
+model employee_schedule {
+  id          String   @id @default(uuid())
+  employee_id String
+  schedule_id String
+  start_date  DateTime
+  end_date    DateTime?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  employee employee @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+  schedule schedule @relation(fields: [schedule_id], references: [id], onDelete: Cascade)
+
+  @@index([employee_id])
+  @@index([schedule_id])
 }
 
 enum status {

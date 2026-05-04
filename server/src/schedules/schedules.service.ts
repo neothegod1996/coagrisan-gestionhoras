@@ -51,6 +51,7 @@ export class SchedulesService {
           end_time: dayjs(session.end_time).toISOString(),
           break_start_time: session.break_start_time ? dayjs(session.break_start_time).toISOString() : null,
           break_end_time: session.break_end_time ? dayjs(session.break_end_time).toISOString() : null,
+          extend_for_break: session.extend_for_break || false,
           total_time: dayjs(session.end_time).diff(dayjs(session.start_time), 'minutes'),
           schedule_id: schedule.id,
         })),
@@ -219,6 +220,7 @@ export class SchedulesService {
           end_time: dayjs(session.end_time).toISOString(),
           break_start_time: session.break_start_time ? dayjs(session.break_start_time).toISOString() : null,
           break_end_time: session.break_end_time ? dayjs(session.break_end_time).toISOString() : null,
+          extend_for_break: session.extend_for_break || false,
           total_time: dayjs(session.end_time).diff(dayjs(session.start_time), 'minutes'),
           schedule_id: id,
         })),
@@ -298,6 +300,8 @@ export class SchedulesService {
       throw new HttpException('Schedule not found', HttpStatus.NOT_FOUND);
     }
 
+    const { start_date, end_date } = body;
+
     const employees = (employee_ids || profile_ids) ? await this.prisma.employee.findMany({
       where: {
         AND: [
@@ -329,13 +333,38 @@ export class SchedulesService {
       throw new HttpException('Employees not found', HttpStatus.NOT_FOUND);
     }
 
-    await this.prisma.schedule.update({
-      where: { id },
-      data: {
-        employee: {
-          set: employees.map(employee => ({ id: employee.id })),
+    if (start_date) {
+      // Dynamic assignment (History)
+      const dynamicAssignments = employees.map(employee => ({
+        employee_id: employee.id,
+        schedule_id: id,
+        start_date: dayjs(start_date).toDate(),
+        end_date: end_date ? dayjs(end_date).toDate() : null,
+      }));
+
+      await this.prisma.employee_schedule.createMany({
+        data: dynamicAssignments,
+      });
+
+      // Update current schedule_id for convenience (legacy support)
+      await this.prisma.employee.updateMany({
+        where: {
+          id: { in: employees.map(e => e.id) },
         },
-      },
-    });
+        data: {
+          schedule_id: id,
+        },
+      });
+    } else {
+      // Legacy assignment (Simple update)
+      await this.prisma.schedule.update({
+        where: { id },
+        data: {
+          employee: {
+            set: employees.map(employee => ({ id: employee.id })),
+          },
+        },
+      });
+    }
   }
 }

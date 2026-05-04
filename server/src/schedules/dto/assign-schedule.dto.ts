@@ -13,5 +13,13 @@ export class AssignScheduleDto {
 
     @IsOptional()
     @IsString()
+    start_date?: string;
+
+    @IsOptional()
+    @IsString()
+    end_date?: string;
+
+    @IsOptional()
+    @IsString()
     partner_id?: string;
 }

@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { CalendarDays, User, Phone, Building2 } from "lucide-react";
+import { CalendarDays, User, Phone, Building2, History as HistoryIcon, Plus, Trash2, Calendar, AlertTriangle } from "lucide-react";
 import { EmployeeFormData, FullEmployee } from "@/types/employee";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,9 +79,14 @@ export default function EmployeeForm({
   const [scheduleSearch, setScheduleSearch] = useState("");
   const [locationSearch, setLocationSearch] = useState("");
   const [agreementSearch, setAgreementSearch] = useState("");
+  const [isTurnoverModalOpen, setIsTurnoverModalOpen] = useState(false);
 
   const form = useForm<EmployeeFormValues>({
     resolver: zodResolver(employeeFormSchema),
+  });
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "schedules_history",
   });
   const first_name = form.watch('first_name');
 
@@ -108,6 +113,11 @@ export default function EmployeeForm({
         location_id: '',
         agreement_ids: [],
         is_responsible: false,
+        status: 'active',
+        schedules_history: [],
+        turnover_date: dayjs().toDate(),
+        turnover_reason: '',
+        turnover_comment: '',
       });
     }
   }, [isOpen, employee.data?.id]);
@@ -147,6 +157,15 @@ export default function EmployeeForm({
         location_id: data?.location?.id || '',
         agreement_ids: data?.agreements?.map((ea: any) => ea.agreement.id) || [],
         is_responsible: data?.is_responsible || false,
+        status: data?.status || 'active',
+        schedules_history: data?.schedules_history?.map((sh: any) => ({
+          schedule_id: sh.schedule_id,
+          start_date: dayjs(sh.start_date).toDate(),
+          end_date: sh.end_date ? dayjs(sh.end_date).toDate() : null,
+        })) || [],
+        turnover_date: dayjs().toDate(),
+        turnover_reason: '',
+        turnover_comment: '',
       });
     });
   }, [isOpen, employee_id]);
@@ -232,7 +251,7 @@ export default function EmployeeForm({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto p-0 bg-white dialog-close-btn-white">
+      <DialogContent style={{ minWidth: "1000px" }} className="max-w-[1400px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 bg-white dialog-close-btn-white">
         <DialogHeader className="px-8 py-6 bg-gradient-brand text-white">
           <DialogTitle className="text-2xl font-semibold flex items-center gap-3">
             <div className="w-10 h-10 bg-brand-primary rounded-md flex items-center justify-center">
@@ -609,6 +628,157 @@ export default function EmployeeForm({
                 />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-4">
+                  {/* Sección de Horarios con Historial */}
+                  <div className="md:col-span-2 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <FormLabel className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                        <HistoryIcon className="w-4 h-4" />
+                        Planificación de Horarios
+                      </FormLabel>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => append({ schedule_id: "", start_date: new Date(), end_date: null })}
+                        className="text-xs h-8 border-brand-primary text-brand-primary hover:bg-brand-primary/5"
+                      >
+                        <Plus className="w-3.5 h-3.5 mr-1" />
+                        Añadir Rango
+                      </Button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {fields.length === 0 && (
+                        <div className="text-center py-6 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50/50">
+                          <p className="text-sm text-slate-500">No hay horarios personalizados asignados.</p>
+                          <p className="text-xs text-slate-400 mt-1">Se utilizará el horario base si existe.</p>
+                        </div>
+                      )}
+
+                      {fields.map((field, index) => (
+                        <div
+                          key={field.id}
+                          className="relative p-4 border border-slate-200 rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow"
+                        >
+                          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                            <div className="md:col-span-11 grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <FormField
+                                control={form.control}
+                                name={`schedules_history.${index}.schedule_id`}
+                                render={({ field: subField }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Horario</FormLabel>
+                                    <FormControl>
+                                      <MultiCombobox
+                                        options={schedules.data.map(s => ({ value: s.id, label: s.name }))}
+                                        values={subField.value || ""}
+                                        onSearchChange={setScheduleSearch}
+                                        onValuesChange={subField.onChange}
+                                        placeholder="Elegir horario"
+                                        searchPlaceholder="Buscar..."
+                                        emptyMessage="No encontrado"
+                                        loading={schedules.loading}
+                                        multiple={false}
+                                        className="h-9 text-sm"
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+
+                              <FormField
+                                control={form.control}
+                                name={`schedules_history.${index}.start_date`}
+                                render={({ field: subField }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Desde</FormLabel>
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <FormControl>
+                                          <Button
+                                            variant="outline"
+                                            className={cn(
+                                              "w-full h-9 px-3 text-left font-normal text-sm",
+                                              !subField.value && "text-muted-foreground"
+                                            )}
+                                          >
+                                            {subField.value ? dayjs(subField.value).format("DD/MM/YYYY") : "Seleccionar"}
+                                            <Calendar className="ml-auto h-4 w-4 opacity-50" />
+                                          </Button>
+                                        </FormControl>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-auto p-0" align="start">
+                                        <CalendarComponent
+                                          mode="single"
+                                          selected={subField.value}
+                                          onSelect={subField.onChange}
+                                          initialFocus
+                                        />
+                                      </PopoverContent>
+                                    </Popover>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+
+                              <FormField
+                                control={form.control}
+                                name={`schedules_history.${index}.end_date`}
+                                render={({ field: subField }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wider text-amber-600">Hasta (Opcional)</FormLabel>
+                                    <div className="flex gap-2 items-center">
+                                      <Popover>
+                                        <PopoverTrigger asChild>
+                                          <FormControl>
+                                            <Button
+                                              variant="outline"
+                                              className={cn(
+                                                "w-full h-9 px-3 text-left font-normal text-sm border-amber-100 bg-amber-50/10",
+                                                !subField.value && "text-muted-foreground"
+                                              )}
+                                            >
+                                              {subField.value ? dayjs(subField.value).format("DD/MM/YYYY") : "Actualmente activo"}
+                                              <Calendar className="ml-auto h-4 w-4 opacity-50" />
+                                            </Button>
+                                          </FormControl>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                          <div className="p-2 border-b border-slate-100 flex justify-end">
+                                            <Button variant="ghost" size="xs" onClick={() => subField.onChange(null)}>Limpiar</Button>
+                                          </div>
+                                          <CalendarComponent
+                                            mode="single"
+                                            selected={subField.value || undefined}
+                                            onSelect={subField.onChange}
+                                            initialFocus
+                                          />
+                                        </PopoverContent>
+                                      </Popover>
+                                    </div>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                            <div className="md:col-span-1 flex justify-end pb-0.5">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => remove(index)}
+                                className="h-9 w-9 text-slate-400 hover:text-red-500 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   <FormField
                     control={form.control}
                     name="schedule_id"
@@ -621,21 +791,24 @@ export default function EmployeeForm({
                       ];
                       return (
                         <FormItem>
-                          <FormLabel className="text-sm font-medium text-slate-700">Horario *</FormLabel>
+                          <FormLabel className="text-sm font-medium text-slate-700">Horario Base (Fallback) *</FormLabel>
                           <FormControl>
                             <MultiCombobox
                               options={scheduleOptions}
                               values={field.value || ""}
                               onSearchChange={setScheduleSearch}
                               onValuesChange={field.onChange}
-                              placeholder="Seleccionar horario"
-                              searchPlaceholder="Buscar horarios por nombre"
+                              placeholder="Seleccionar horario por defecto"
+                              searchPlaceholder="Buscar..."
                               emptyMessage="No se encontraron horarios"
                               loading={schedules.loading}
                               multiple={false}
                               className="w-full h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
                             />
                           </FormControl>
+                          <div className="text-[11px] text-slate-400 mt-1 italic">
+                            Se usará si el empleado ficha fuera de los rangos definidos arriba.
+                          </div>
                           <FormMessage />
                         </FormItem>
                       );
@@ -743,6 +916,260 @@ export default function EmployeeForm({
                   />
                 </div>
               </div>
+
+              {/* Gestión de Estado (Alta/Baja) */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 pb-4 border-b border-slate-200">
+                  <div className="w-8 h-8 bg-brand-primary-800 rounded-md flex items-center justify-center">
+                    <HistoryIcon className="w-4 h-4 text-white" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-800">Estado Laboral (Alta / Baja)</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-4">
+                  <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium text-slate-700">Estado Actual</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger className="h-10 border-slate-300">
+                              <SelectValue placeholder="Seleccionar estado" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="active">Alta (Activo)</SelectItem>
+                            <SelectItem value="inactive">Baja (Inactivo)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Mandetary fields if status is being changed or is a new employee */}
+                  {(form.watch('status') !== (employee.data?.status || 'active') || !employee_id) && (
+                    <>
+                      <FormField
+                        control={form.control}
+                        name="turnover_date"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium text-slate-700">Fecha del Movimiento</FormLabel>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <FormControl>
+                                  <Button
+                                    variant="outline"
+                                    className={cn(
+                                      "w-full justify-start text-left font-normal h-10 border-slate-300",
+                                      !field.value && "text-muted-foreground"
+                                    )}
+                                  >
+                                    {field.value ? (
+                                      dayjs(field.value).format("DD [de] MMMM, YYYY")
+                                    ) : (
+                                      <span>Selecciona una fecha</span>
+                                    )}
+                                    <CalendarDays className="ml-auto h-4 w-4 opacity-50" />
+                                  </Button>
+                                </FormControl>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <CalendarComponent
+                                  mode="single"
+                                  selected={field.value}
+                                  onSelect={field.onChange}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="turnover_reason"
+                        render={({ field }) => (
+                          <FormItem className="md:col-span-2">
+                            <FormLabel className="text-sm font-medium text-slate-700">Motivo</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder={form.watch('status') === 'active' ? 'Ej: Alta inicial, Reincorporación' : 'Ej: Fin de contrato, Renuncia'}
+                                {...field}
+                                className="h-10 border-slate-300"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="turnover_comment"
+                        render={({ field }) => (
+                          <FormItem className="md:col-span-2">
+                            <FormLabel className="text-sm font-medium text-slate-700">Comentarios Adicionales</FormLabel>
+                            <FormControl>
+                              <textarea
+                                {...field}
+                                className="w-full min-h-[80px] p-3 rounded-md border border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary text-sm"
+                                placeholder="Cualquier detalle adicional importante sobre este movimiento..."
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="md:col-span-2 p-3 bg-brand-primary/5 rounded-md border border-brand-primary/20">
+                        <p className="text-xs text-brand-primary-700 flex items-center gap-2">
+                          <HistoryIcon className="w-3 h-3" />
+                          Al guardar, se registrará automáticamente un nuevo movimiento en el historial laboral del empleado.
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Historial de Altas y Bajas */}
+              {employee_id && employee.data?.employee_turnover && employee.data.employee_turnover.length > 0 && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between pb-4 border-b border-slate-200">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-slate-100 rounded-md flex items-center justify-center">
+                        <HistoryIcon className="w-4 h-4 text-slate-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-slate-800">Historial de Movimientos</h3>
+                    </div>
+                    {employee.data.employee_turnover.length > 3 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsTurnoverModalOpen(true)}
+                        className="text-brand-primary hover:text-brand-primary-700 hover:bg-brand-primary/10"
+                      >
+                        Ver todo ({employee.data.employee_turnover.length})
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200">
+                        <tr>
+                          <th className="px-4 py-3">Fecha</th>
+                          <th className="px-4 py-3 text-center">Tipo</th>
+                          <th className="px-4 py-3">Motivo</th>
+                          <th className="px-4 py-3">Comentarios</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 text-slate-700">
+                        {employee.data.employee_turnover.slice(0, 3).map((item) => (
+                          <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="px-4 py-3 whitespace-nowrap text-slate-900">
+                              {dayjs(item.date).format('DD/MM/YYYY')}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {item.type === 'hiring' ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
+                                  Alta
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
+                                  Baja
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 font-medium text-slate-800 capitalize">
+                              {item.reason.replace(/_/g, ' ')}
+                            </td>
+                            <td className="px-4 py-3 text-slate-500 italic max-w-[300px] truncate">
+                              {item.comment || "-"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {employee.data.employee_turnover.length > 3 && (
+                      <div className="p-3 bg-slate-50 border-t border-slate-200 text-center">
+                        <p className="text-xs text-slate-500">
+                          Mostrando los 3 movimientos más recientes de un total de {employee.data.employee_turnover.length}.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Modal Historial Completo */}
+              <Dialog open={isTurnoverModalOpen} onOpenChange={setIsTurnoverModalOpen}>
+                <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col p-0">
+                  <DialogHeader className="p-6 bg-gradient-brand text-white">
+                    <DialogTitle className="flex items-center gap-3 text-2xl">
+                      <div className="w-10 h-10 bg-brand-primary rounded-md flex items-center justify-center">
+                        <HistoryIcon className="w-5 h-5 text-white" />
+                      </div>
+                      Historial de Movimientos
+                    </DialogTitle>
+                    <DialogDescription className="text-slate-200">
+                      Registro detallado de todas las altas y bajas de {employee.data?.first_name} {employee.data?.last_name}.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex-1 overflow-y-auto p-6">
+                    <div className="border border-slate-200 rounded-lg overflow-hidden shadow-md">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 sticky top-0 shadow-sm">
+                          <tr>
+                            <th className="px-4 py-4">Fecha</th>
+                            <th className="px-4 py-4 text-center">Tipo de Movimiento</th>
+                            <th className="px-4 py-4">Motivo Detallado</th>
+                            <th className="px-4 py-4">Comentarios del Administrador</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200 text-slate-700">
+                          {employee.data?.employee_turnover?.map((item) => (
+                            <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="px-4 py-4 whitespace-nowrap text-slate-900 font-semibold">
+                                {dayjs(item.date).format('DD/MM/YYYY')}
+                              </td>
+                              <td className="px-4 py-4 text-center">
+                                {item.type === 'hiring' ? (
+                                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800 border border-green-200">
+                                    ALTA
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">
+                                    BAJA
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-4 capitalize font-medium">
+                                {item.reason.replace(/_/g, ' ')}
+                              </td>
+                              <td className="px-4 py-4 text-slate-600 leading-relaxed">
+                                {item.comment || "Sin comentarios adicionales."}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+                    <Button variant="outline" className="px-8 border-slate-300" onClick={() => setIsTurnoverModalOpen(false)}>
+                      Cerrar Historial
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
 
               <div className="flex justify-end gap-4 pt-8">
                 <Button

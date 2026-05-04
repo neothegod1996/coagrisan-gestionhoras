@@ -6,9 +6,9 @@ export class CreateScheduleDto {
     @IsString()
     name: string;
 
-    @IsNotEmpty()
+    @IsOptional()
     @IsString()
-    description: string;
+    description?: string;
 
     @IsOptional()
     @IsUUID()
@@ -48,4 +48,8 @@ export class ScheduleSessionDto {
     @IsOptional()
     @IsDate()
     break_end_time?: Date;
-}   
+
+    @IsOptional()
+    @IsBoolean()
+    extend_for_break?: boolean;
+}

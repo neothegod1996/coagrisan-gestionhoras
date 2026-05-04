@@ -1,4 +1,19 @@
-import { IsArray, IsBoolean, IsDateString, IsEmail, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsArray, IsBoolean, IsDateString, IsEmail, IsNotEmpty, IsOptional, IsString, ValidateNested } from "class-validator";
+import { Type } from "class-transformer";
+
+class EmployeeScheduleDto {
+    @IsNotEmpty()
+    @IsString()
+    schedule_id: string;
+
+    @IsNotEmpty()
+    @IsDateString()
+    start_date: string;
+
+    @IsOptional()
+    @IsDateString()
+    end_date?: string;
+}
 
 export class CreateEmployeeDto {
     @IsNotEmpty()
@@ -71,10 +86,32 @@ export class CreateEmployeeDto {
 
     @IsOptional()
     @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => EmployeeScheduleDto)
+    schedules_history?: EmployeeScheduleDto[];
+
+    @IsOptional()
+    @IsArray()
     @IsString({ each: true })
     agreement_ids?: string[];
 
     @IsOptional()
     @IsBoolean()
     is_responsible?: boolean;
+
+    @IsOptional()
+    @IsString()
+    status?: 'active' | 'inactive';
+
+    @IsOptional()
+    @IsString()
+    turnover_date?: string;
+
+    @IsOptional()
+    @IsString()
+    turnover_reason?: string;
+
+    @IsOptional()
+    @IsString()
+    turnover_comment?: string;
 }

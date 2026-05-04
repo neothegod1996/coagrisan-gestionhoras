@@ -5,6 +5,7 @@ import { PrismaService } from 'src/prisma.service';
 import { User } from 'src/types';
 import { role, user_type } from '@prisma/client';
 import { PaginationEmployeeDto } from './dto/pagination-employee.dto';
+import * as dayjs from 'dayjs';
 
 @Injectable()
 export class EmployeesService {
@@ -15,7 +16,15 @@ export class EmployeesService {
       throw new HttpException('"partner_id" field is required', HttpStatus.BAD_REQUEST);
     }
     const partner_id = user.role === role.admin ? body.partner_id : user.partner_id;
-    const { agreement_ids, ...rest } = body;
+    const { 
+      agreement_ids, 
+      status: employee_status, 
+      turnover_date, 
+      turnover_reason, 
+      turnover_comment, 
+      schedules_history,
+      ...rest 
+    } = body;
 
     let [findUser, findEmployee] = await Promise.all([
       this.prisma.user.findUnique({
@@ -50,11 +59,31 @@ export class EmployeesService {
         alias: body.first_name.toUpperCase(),
         partner_id: partner_id!,
         user_id: findUser.id,
+        status: employee_status || 'active',
         agreements: agreement_ids?.length ? {
           create: agreement_ids.map(id => ({ agreement_id: id })),
         } : undefined,
+        schedules_history: schedules_history?.length ? {
+          create: schedules_history.map(sh => ({
+            schedule_id: sh.schedule_id,
+            start_date: dayjs(sh.start_date).toDate(),
+            end_date: sh.end_date ? dayjs(sh.end_date).toDate() : null,
+          })),
+        } : undefined,
       },
     })
+
+    // Create initial turnover (Alta)
+    await this.prisma.employee_turnover.create({
+      data: {
+        employee_id: findEmployee.id,
+        date: turnover_date ? dayjs(turnover_date).toDate() : new Date(),
+        type: 'hiring',
+        reason: turnover_reason || 'Alta inicial desde registro',
+        comment: turnover_comment,
+      }
+    });
+
     return findEmployee;
   }
 
@@ -207,6 +236,16 @@ export class EmployeesService {
             }
           }
         },
+        employee_turnover: {
+          orderBy: { date: 'desc' }
+        },
+        schedules_history: {
+          include: {
+            schedule: { select: { name: true } }
+          },
+          orderBy: { start_date: 'desc' }
+        },
+        status: true,
       }
     });
     if (!employee) {
@@ -216,23 +255,62 @@ export class EmployeesService {
   }
 
   async update(id: string, body: UpdateEmployeeDto, user: User) {
-    const { partner_id: _, agreement_ids, ...data } = body;
+    const { 
+      partner_id: _, 
+      agreement_ids, 
+      status: new_status, 
+      turnover_date, 
+      turnover_reason, 
+      turnover_comment, 
+      schedules_history,
+      ...data 
+    } = body;
     const partner_id = user.partner_id;
     let where: any = { id };
     if (partner_id) where.partner_id = partner_id;
+
+    const currentEmployee = await this.prisma.employee.findUnique({
+      where,
+      select: { status: true }
+    });
 
     const employee = await this.prisma.employee.update({
       where,
       data: {
         ...data,
+        status: new_status,
         ...(agreement_ids !== undefined && {
           agreements: {
             deleteMany: {},
             create: agreement_ids.map(agId => ({ agreement_id: agId })),
           },
         }),
+        ...(schedules_history !== undefined && {
+          schedules_history: {
+            deleteMany: {},
+            create: schedules_history.map(sh => ({
+              schedule_id: sh.schedule_id,
+              start_date: dayjs(sh.start_date).toDate(),
+              end_date: sh.end_date ? dayjs(sh.end_date).toDate() : null,
+            })),
+          },
+        }),
       },
     });
+
+    // If status changed, record the turnover
+    if (new_status && currentEmployee && currentEmployee.status !== new_status) {
+      await this.prisma.employee_turnover.create({
+        data: {
+          employee_id: id,
+          date: turnover_date ? dayjs(turnover_date).toDate() : new Date(),
+          type: new_status === 'active' ? 'hiring' : 'departure',
+          reason: turnover_reason || (new_status === 'active' ? 'Re-ingreso' : 'Baja desde edición'),
+          comment: turnover_comment,
+        }
+      });
+    }
+
     return employee;
   }
 

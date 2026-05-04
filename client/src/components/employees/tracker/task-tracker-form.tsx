@@ -77,10 +77,29 @@ export default function TaskTrackerForm({
           onClose();
         }
       } else {
+        // Capture Geolocation for new tasks
+        let latitude: number | undefined;
+        let longitude: number | undefined;
+
+        try {
+          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              timeout: 5000,
+              enableHighAccuracy: true,
+            });
+          });
+          latitude = position.coords.latitude;
+          longitude = position.coords.longitude;
+        } catch (geoError) {
+          console.warn("Geolocation permission denied or timed out:", geoError);
+        }
+
         const createData: CreateTaskTrackerRequest = {
           name: formData.name.trim(),
           description: formData.description.trim() || undefined,
           employee_id: user.id,
+          latitude,
+          longitude,
         };
         
         const result = await createTaskTracker(createData);

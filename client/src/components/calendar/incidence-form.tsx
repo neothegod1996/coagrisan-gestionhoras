@@ -32,12 +32,18 @@ interface IncidenceFormProps {
     refetch: () => void;
 }
 
+import { useAuthStore } from "@/store/useAuthStore";
+import { AuthRoleEnum } from "@/types/auth";
+
 export default function IncidenceForm({
     isOpen,
     incidence_id,
     onClose,
     refetch,
 }: IncidenceFormProps) {
+    const { user } = useAuthStore();
+    const isAdminOrManager = user?.role === AuthRoleEnum.Admin || user?.role === AuthRoleEnum.Manager;
+    
     const [incidence, setIncidence] = useState<RequestHandler<FullIncidence | null>>({ data: null, loading: true });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [employees, setEmployees] = useState<PaginatedRequestHandler<Employee>>({ data: [], loading: false, total_pages: 0, total: 0 });
@@ -126,24 +132,24 @@ export default function IncidenceForm({
     const profileIds = form.watch("profile_ids");
 
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen || !isAdminOrManager) return;
 
         setEmployees((prev: PaginatedRequestHandler<Employee>) => ({ ...prev, loading: true }));
         getEmployees({ page: 1, search: employeeSearch }).then((res) => {
             const { data, total, total_pages } = res || {};
             setEmployees({ data: data || [], loading: false, total: total || 0, total_pages: total_pages || 1 });
         });
-    }, [isOpen, employeeSearch]);
+    }, [isOpen, employeeSearch, isAdminOrManager]);
 
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen || !isAdminOrManager) return;
 
         setProfiles((prev: PaginatedRequestHandler<Profile>) => ({ ...prev, loading: true }));
         getProfiles({ page: 1, search: profileSearch } as ProfileFilters).then((res) => {
             const { data, total, total_pages } = res || {};
             setProfiles({ data: data || [], loading: false, total: total || 0, total_pages: total_pages || 1 });
         });
-    }, [isOpen, profileSearch]);
+    }, [isOpen, profileSearch, isAdminOrManager]);
 
     const handleSubmit = async (data: IncidenceFormValues) => {
         setIsSubmitting(true);
@@ -315,97 +321,99 @@ export default function IncidenceForm({
                             </div>
 
                             {/* Configuración de Alcance */}
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-3 pb-4 border-b border-slate-200">
-                                    <div className="w-8 h-8 bg-brand-primary rounded-md flex items-center justify-center">
-                                        <Users className="w-4 h-4 text-white" />
+                            {isAdminOrManager && (
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-3 pb-4 border-b border-slate-200">
+                                        <div className="w-8 h-8 bg-brand-primary rounded-md flex items-center justify-center">
+                                            <Users className="w-4 h-4 text-white" />
+                                        </div>
+                                        <h3 className="text-lg font-semibold text-slate-800">Alcance de la Incidencia</h3>
                                     </div>
-                                    <h3 className="text-lg font-semibold text-slate-800">Alcance de la Incidencia</h3>
-                                </div>
 
-                                <div className="space-y-4">
-                                    <FormField
-                                        control={form.control}
-                                        name="is_global"
-                                        render={({ field }) => (
-                                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                                                <div className="space-y-0.5">
-                                                    <FormLabel className="text-base">
-                                                        Aplicar globalmente
-                                                    </FormLabel>
-                                                    <div className="text-sm text-gray-600">
-                                                        Se aplicará a todos los empleados
+                                    <div className="space-y-4">
+                                        <FormField
+                                            control={form.control}
+                                            name="is_global"
+                                            render={({ field }) => (
+                                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                                                    <div className="space-y-0.5">
+                                                        <FormLabel className="text-base">
+                                                            Aplicar globalmente
+                                                        </FormLabel>
+                                                        <div className="text-sm text-gray-600">
+                                                            Se aplicará a todos los empleados
+                                                        </div>
                                                     </div>
-                                                </div>
-                                                <FormControl>
-                                                    <Switch
-                                                        checked={field.value}
-                                                        onCheckedChange={field.onChange}
-                                                    />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
+                                                    <FormControl>
+                                                        <Switch
+                                                            checked={field.value}
+                                                            onCheckedChange={field.onChange}
+                                                        />
+                                                    </FormControl>
+                                                </FormItem>
+                                            )}
+                                        />
 
-                                    {!isGlobal ? (
-                                        <>
-                                            <FormField
-                                                control={form.control}
-                                                name="employee_ids"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel className="text-sm font-medium text-slate-700">Empleados</FormLabel>
-                                                        <FormControl>
-                                                            <MultiCombobox
-                                                                options={employees.data.map((employee: Employee) => ({
-                                                                    value: employee.id,
-                                                                    label: `${employee.first_name} ${employee.last_name}`
-                                                                }))}
-                                                                values={field.value || []}
-                                                                onSearchChange={setEmployeeSearch}
-                                                                onValuesChange={field.onChange}
-                                                                placeholder="Seleccionar empleados"
-                                                                searchPlaceholder="Buscar empleados por nombre"
-                                                                emptyMessage="No se encontraron empleados"
-                                                                loading={employees.loading}
-                                                                className="w-full h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
-                                                            />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
+                                        {!isGlobal ? (
+                                            <>
+                                                <FormField
+                                                    control={form.control}
+                                                    name="employee_ids"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel className="text-sm font-medium text-slate-700">Empleados</FormLabel>
+                                                            <FormControl>
+                                                                <MultiCombobox
+                                                                    options={employees.data.map((employee: Employee) => ({
+                                                                        value: employee.id,
+                                                                        label: `${employee.first_name} ${employee.last_name}`
+                                                                    }))}
+                                                                    values={field.value || []}
+                                                                    onSearchChange={setEmployeeSearch}
+                                                                    onValuesChange={field.onChange}
+                                                                    placeholder="Seleccionar empleados"
+                                                                    searchPlaceholder="Buscar empleados por nombre"
+                                                                    emptyMessage="No se encontraron empleados"
+                                                                    loading={employees.loading}
+                                                                    className="w-full h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
+                                                                />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
 
-                                            <FormField
-                                                control={form.control}
-                                                name="profile_ids"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel className="text-sm font-medium text-slate-700">Categorías</FormLabel>
-                                                        <FormControl>
-                                                            <MultiCombobox
-                                                                options={profiles.data.map((profile: Profile) => ({
-                                                                    value: profile.id,
-                                                                    label: profile.name
-                                                                }))}
-                                                                values={field.value || []}
-                                                                onSearchChange={setProfileSearch}
-                                                                onValuesChange={field.onChange}
-                                                                placeholder="Seleccionar categorías"
-                                                                searchPlaceholder="Buscar categorías por nombre"
-                                                                emptyMessage="No se encontraron categorías"
-                                                                loading={profiles.loading}
-                                                                className="w-full h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
-                                                            />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </>
-                                    ) : null}
+                                                <FormField
+                                                    control={form.control}
+                                                    name="profile_ids"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel className="text-sm font-medium text-slate-700">Categorías</FormLabel>
+                                                            <FormControl>
+                                                                <MultiCombobox
+                                                                    options={profiles.data.map((profile: Profile) => ({
+                                                                        value: profile.id,
+                                                                        label: profile.name
+                                                                    }))}
+                                                                    values={field.value || []}
+                                                                    onSearchChange={setProfileSearch}
+                                                                    onValuesChange={field.onChange}
+                                                                    placeholder="Seleccionar categorías"
+                                                                    searchPlaceholder="Buscar categorías por nombre"
+                                                                    emptyMessage="No se encontraron categorías"
+                                                                    loading={profiles.loading}
+                                                                    className="w-full h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
+                                                                />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </>
+                                        ) : null}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             {/* Configuración de Tiempo */}
                             <div className="space-y-6">

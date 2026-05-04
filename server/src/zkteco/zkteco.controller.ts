@@ -13,13 +13,28 @@ export class ZktecoController {
   @Get('cdata')
   async getRequest(
     @Query('SN') serialNumber: string,
+    @Query('options') options: string,
     @Res() res: Response
   ) {
-    this.logger.log(`Handshake received from SN: ${serialNumber}`);
+    this.logger.log(`Handshake received from SN: ${serialNumber}, options: ${options}`);
     res.setHeader('Content-Type', 'text/plain');
 
     const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
-    return res.status(200).send(`GET STAMPER\r\nStamp=${now}\r\n`);
+    // Configuración ADMS más completa para asegurar sincronización
+    const response = [
+      'GET STAMPER',
+      `Stamp=${now}`,
+      'TransInterval=1',
+      'TransTimes=00:00;23:59',
+      'ErrorDelay=60',
+      'Delay=30',
+      'TransFlag=1111000000',
+      'TimeZone=1',
+      'Realtime=1',
+      ''
+    ].join('\r\n');
+
+    return res.status(200).send(response);
   }
 
   // 2. Recepción de Datos: Aquí ocurre la magia del Service
@@ -33,28 +48,25 @@ export class ZktecoController {
     res.setHeader('Content-Type', 'text/plain');
 
     try {
-      // Extraemos el cuerpo crudo (ZKTeco envía texto plano con tabulaciones)
       const rawText = (req as any).rawBody 
         ? (req as any).rawBody.toString('utf8') 
         : (typeof req.body === 'string' ? req.body : '');
 
-      if (!rawText || !serialNumber) {
+      if (!serialNumber) {
         return res.status(200).send('OK');
       }
 
-      // IMPORTANTE: Solo procesamos si la tabla es de asistencias (ATTLOG)
-      if (tableType === 'ATTLOG') {
-        this.logger.log(`Processing ATTLOG for SN: ${serialNumber}`);
-        
-        // LLAMADA AL SERVICIO: Aquí se crean los Tasks y Clocks
-        await this.zktecoService.processAttendanceLogs(serialNumber, rawText);
+      this.logger.log(`Received data from SN: ${serialNumber}, table: ${tableType}`);
+
+      if (tableType === 'ATTLOG' && rawText) {
+        await this.zktecoService.processAttendanceLogs(serialNumber, rawText, req.ip);
+      } else {
+        this.logger.debug(`Ignored table ${tableType} from SN: ${serialNumber}`);
       }
 
-      // ZKTeco espera un "OK" para saber que recibimos los datos y no re-enviarlos
       return res.status(200).send('OK');
     } catch (error) {
-      this.logger.error(`Error processing ZKTeco data: ${error.message}`);
-      // Respondemos OK incluso en error para evitar que el dispositivo se bloquee re-intentando
+      this.logger.error(`Error processing ZKTeco data from SN ${serialNumber}: ${error.message}`);
       return res.status(200).send('OK');
     }
   }

@@ -99,6 +99,7 @@ export default function ScheduleForm({
             end_time: "17:00",
             shift_type: ShiftTypeEnum.Morning,
             has_break: false,
+            extend_for_break: false,
           }
         ],
         days: [DaysEnum.Monday],
@@ -399,43 +400,68 @@ export default function ScheduleForm({
                       />
 
                       {session.has_break && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <FormField
-                            control={form.control}
-                            name={`sessions.${index}.break_start_time`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Hora de Inicio del Descanso</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    {...field}
-                                    type="time"
-                                    placeholder="10:30"
-                                    className="rounded-md"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                              control={form.control}
+                              name={`sessions.${index}.break_start_time`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Hora de Inicio del Descanso</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      {...field}
+                                      type="time"
+                                      placeholder="10:30"
+                                      className="rounded-md"
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name={`sessions.${index}.break_end_time`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>
+                                    Hora de Fin del Descanso
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      {...field}
+                                      type="time"
+                                      placeholder="10:45"
+                                      className="rounded-md"
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
 
                           <FormField
                             control={form.control}
-                            name={`sessions.${index}.break_end_time`}
+                            name={`sessions.${index}.extend_for_break`}
                             render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>
-                                  Hora de Fin del Descanso
-                                </FormLabel>
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                                 <FormControl>
-                                  <Input
-                                    {...field}
-                                    type="time"
-                                    placeholder="10:45"
-                                    className="rounded-md"
+                                  <Checkbox 
+                                    checked={field.value} 
+                                    onCheckedChange={field.onChange} 
                                   />
                                 </FormControl>
-                                <FormMessage />
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="text-sm font-medium">
+                                    Extender jornada por descanso
+                                  </FormLabel>
+                                  <p className="text-xs text-muted-foreground">
+                                    Suma la duración del descanso a la hora de salida automáticamente.
+                                  </p>
+                                </div>
                               </FormItem>
                             )}
                           />
