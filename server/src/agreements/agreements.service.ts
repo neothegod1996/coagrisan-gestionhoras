@@ -9,14 +9,14 @@ import { AddHolidayDto } from './dto/add-holiday.dto';
 
 @Injectable()
 export class AgreementsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async create(body: CreateAgreementDto, user: User) {
     const { partner_id: partner_id_body, ...data } = body;
-    if (user.role === role.admin && !partner_id_body) {
+    const partner_id = partner_id_body ?? (user.role === role.admin ? user.id : user.partner_id);
+    if (!partner_id) {
       throw new HttpException('"partner_id" field is required', HttpStatus.BAD_REQUEST);
     }
-    const partner_id = user.role === role.admin ? partner_id_body : user.partner_id;
 
     return this.prisma.agreement.create({
       data: {
@@ -29,8 +29,9 @@ export class AgreementsService {
   async findAll(query: PaginationAgreementDto, user: User) {
     const { page, limit, search, partner_id: partner_id_query } = query;
 
-    const partner_id = user.role === role.admin ? partner_id_query : user.partner_id;
+    const partner_id = user.role === role.admin ? user.partner_id : partner_id_query;
     const skip = (page - 1) * limit;
+
 
     let where: any = {};
     if (partner_id) where.partner_id = partner_id;

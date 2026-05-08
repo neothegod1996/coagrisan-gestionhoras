@@ -93,7 +93,7 @@ export default function TerminalForm({
       onClose();
       setTerminal({ data: null, loading: true });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       toast.error("Hubo un error al guardar el terminal, por favor intente nuevamente.");
     } finally {
       setIsSubmitting(false);
@@ -159,7 +159,7 @@ export default function TerminalForm({
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="name"

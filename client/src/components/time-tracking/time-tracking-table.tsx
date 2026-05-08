@@ -29,6 +29,7 @@ export default function TimeTrackingTable({ filters, isLoading = false, reports 
       acc[employeeKey] = {
         employee: {
           id: employee.id,
+          card_id: employee.card_id,
           name: employee.full_name,
           total_hours: employee.total_hours,
           normal_hours: employee.normal_hours,
@@ -52,13 +53,14 @@ export default function TimeTrackingTable({ filters, isLoading = false, reports 
     });
 
     return acc;
-  }, {} as Record<string, { 
-    employee: { 
-      id: string; 
-      name: string; 
-      total_hours: number; 
-      normal_hours: number; 
-      extra_hours: number; 
+  }, {} as Record<string, {
+    employee: {
+      id: string;
+      card_id: string | null;
+      name: string;
+      total_hours: number;
+      normal_hours: number;
+      extra_hours: number;
     }; 
     weeks: Record<string, { 
       weekStart: dayjs.Dayjs; 
@@ -192,7 +194,7 @@ export default function TimeTrackingTable({ filters, isLoading = false, reports 
                             </Button>
                             <div className="flex items-center gap-3">
                               <span className="font-semibold text-brand-primary-800 text-lg">
-                                {employeeData.employee.id.slice(-10)} - {employeeData.employee.name}
+                                {employeeData.employee.card_id ? `${employeeData.employee.card_id} - ` : ''}{employeeData.employee.name}
                               </span>
                             </div>
                           </div>

@@ -110,3 +110,23 @@ export function roundHours(hours: number): number {
   return Math.round(hours * 100) / 100;
 }
 
+/**
+ * Redondea una hora de fichaje al intervalo indicado (15, 30, 60 min)
+ */
+export function roundClockTime(time: Date | null, rounding: 'none' | '15' | '30' | '60'): Date | null {
+  if (!time || rounding === 'none') return time;
+  const intervalMinutes = parseInt(rounding);
+  const d = dayjs(time);
+  const totalMinutes = d.hour() * 60 + d.minute();
+  const roundedMinutes = Math.round(totalMinutes / intervalMinutes) * intervalMinutes;
+  return d.startOf('day').add(roundedMinutes, 'minute').second(0).millisecond(0).toDate();
+}
+
+/**
+ * Aplica redondeo a un array de tiempos de fichaje
+ */
+export function applyRoundingToClocks(times: Date[], rounding: 'none' | '15' | '30' | '60'): Date[] {
+  if (rounding === 'none') return times;
+  return times.map(t => roundClockTime(t, rounding) as Date);
+}
+

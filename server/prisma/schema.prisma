@@ -26,6 +26,7 @@ model user {
   schedules  schedule[]  @relation("PartnerSchedules")
   terminals  terminal[]  @relation("PartnerTerminals")
   agreements agreement[] @relation("PartnerAgreements")
+  incidence_categories incidence_category[]
 
   @@index([wp_id])
   @@index([wp_email])
@@ -197,6 +198,8 @@ model incidence {
   updated_at     DateTime       @updatedAt
   partner_id     String
   duration_hours Int?
+  category_id    String?
+  category       incidence_category? @relation(fields: [category_id], references: [id])
   partner        user           @relation("PartnerIncidences", fields: [partner_id], references: [id])
   employees      employee[]     @relation("employeeToincidence")
   profiles       profile[]      @relation("incidenceToprofile")
@@ -204,6 +207,7 @@ model incidence {
   @@index([start_date])
   @@index([end_date])
   @@index([partner_id])
+  @@index([category_id])
 }
 
 model location {
@@ -261,8 +265,15 @@ model task_tracker {
   longitude  Float?
   ip_address String?
   terminal_id String?
+  is_approved Boolean @default(false)
+
+  // Incidence fields
+  incidence_category_id String?
+  incidence_category    incidence_category? @relation(fields: [incidence_category_id], references: [id])
+  is_paid              Boolean?
 
   @@index([employee_id])
+  @@index([incidence_category_id])
 }
 
 model task_tracker_shift_clock {
@@ -305,6 +316,22 @@ model employee_agreement {
   @@unique([employee_id, agreement_id])
   @@index([employee_id])
   @@index([agreement_id])
+}
+
+model incidence_category {
+  id          String         @id @default(uuid())
+  name        String
+  description String?
+  paid        Boolean        @default(false)
+  type        incidence_type @default(other)
+  partner_id  String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  partner     user     @relation(fields: [partner_id], references: [id])
+  incidences  incidence[]
+  task_trackers task_tracker[]
+
+  @@index([partner_id])
 }
 
 model agreement_holiday {

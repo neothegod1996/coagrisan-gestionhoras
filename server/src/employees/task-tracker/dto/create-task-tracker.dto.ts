@@ -35,4 +35,14 @@ export class CreateTaskTrackerDto {
   @IsOptional()
   @IsString()
   terminal_id?: string;
+
+  @IsOptional()
+  @IsString()
+  incidence_category_id?: string;
+
+  @IsOptional()
+  is_paid?: boolean;
+
+  @IsOptional()
+  is_approved?: boolean;
 }

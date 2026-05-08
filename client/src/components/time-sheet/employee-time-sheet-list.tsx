@@ -62,7 +62,6 @@ export default function TimeSheetList({ }: Props) {
     };
 
     const getEmployeeName = (timeSheet: any) => {
-        console.log(timeSheet)
         const employee = timeSheet?.employee || timeSheet?.employee_shift?.employee;
         if (!employee) return 'Empleado Desconocido';
         const { first_name, last_name } = employee;

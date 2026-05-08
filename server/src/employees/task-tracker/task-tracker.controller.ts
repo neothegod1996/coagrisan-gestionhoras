@@ -10,9 +10,23 @@ import { role } from '@prisma/client';
 import { RequestWithUser } from 'src/types';
 import { Response } from 'express';
 
+import { BulkApproveDto } from './dto/bulk-approve.dto';
+
 @Controller('task-tracker')
 export class TaskTrackerController {
   constructor(private readonly taskTrackerService: TaskTrackerService) {}
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(role.manager, role.admin)
+  @Post('bulk-approve')
+  async bulkApprove(@Req() req: RequestWithUser, @Res() res: Response, @Body() body: BulkApproveDto) {
+    const result = await this.taskTrackerService.bulkApprove(body, req.user);
+    return res.status(200).json({
+      success: true,
+      data: result,
+      message: 'Tasks processed successfully',
+    });
+  }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(role.employee, role.manager, role.admin)

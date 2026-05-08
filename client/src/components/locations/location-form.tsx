@@ -93,7 +93,7 @@ export default function LocationForm({
       onClose();
       setLocation({ data: null, loading: true });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       toast.error("Hubo un error al guardar la ubicación, por favor intente nuevamente.");
     } finally {
       setIsSubmitting(false);

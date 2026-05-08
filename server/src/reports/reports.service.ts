@@ -7,6 +7,7 @@ import {
   ReportStatistics,
   EmployeeReport,
   WeekReport,
+  MonthReport,
   DayReport,
   SessionReport,
 } from './entities/report.entity';
@@ -22,6 +23,7 @@ import {
   calculateNormalAndExtraHours,
   calculateWorkedHours,
   roundHours,
+  applyRoundingToClocks,
 } from './helpers/hours.helper';
 import {
   isWorkingDay,
@@ -88,31 +90,43 @@ interface IncidenceData {
 
 @Injectable()
 export class ReportsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async findAll(query: QueryReportDto, partner_id?: string): Promise<Report> {
-    const { employee_id, profile_id, location_id, start_date, end_date, limit_to_8_hours } = query;
+    const {
+      employee_id,
+      profile_id,
+      location_id,
+      agreement_id,
+      employee_from,
+      employee_to,
+      start_date,
+      end_date,
+      limit_to_8_hours,
+      rounding = 'none',
+    } = query;
 
-    // Construir filtros para empleados
     const whereEmployee: any = {
       partner_id,
       status: 'active',
     };
 
     if (employee_id) {
+      // Specific employee selected — ignore profile/location/agreement/range filters
       whereEmployee.id = employee_id;
+    } else {
+      if (profile_id) whereEmployee.profile_id = profile_id;
+      if (location_id) whereEmployee.location_id = location_id;
+      if (agreement_id) {
+        whereEmployee.agreements = { some: { agreement_id } };
+      }
+      if (employee_from || employee_to) {
+        whereEmployee.card_id = {};
+        if (employee_from) whereEmployee.card_id.gte = employee_from;
+        if (employee_to) whereEmployee.card_id.lte = employee_to;
+      }
     }
 
-    if (profile_id) {
-      whereEmployee.profile_id = profile_id;
-    }
-
-    if (location_id) {
-      whereEmployee.location_id = location_id;
-    }
-
-    // Determinar rango de fechas
-    // Si no se especifica ninguna fecha, usar el mes actual
     let finalStartDate: Date;
     let finalEndDate: Date;
 
@@ -126,14 +140,13 @@ export class ReportsService {
       finalStartDate = dayjs(end_date).startOf('month').toDate();
       finalEndDate = dayjs(end_date).endOf('day').toDate();
     } else {
-      // Sin fechas especificadas: usar mes actual
       finalStartDate = dayjs().startOf('month').toDate();
       finalEndDate = dayjs().endOf('month').toDate();
     }
 
-    // Consultar empleados que cumplen los filtros
     const employees = await this.prisma.employee.findMany({
       where: whereEmployee,
+      orderBy: [{ card_id: 'asc' }, { first_name: 'asc' }],
       include: {
         schedule: {
           include: {
@@ -166,9 +179,6 @@ export class ReportsService {
           },
           include: {
             shift_clock: {
-              where: {
-                status: 'approved',
-              },
               orderBy: {
                 time: 'asc',
               },
@@ -179,10 +189,26 @@ export class ReportsService {
             date: 'asc',
           },
         },
+        task_tracker: {
+          where: {
+            start_time: {
+              gte: finalStartDate,
+              lte: finalEndDate,
+            },
+            end_time: { not: null },
+          },
+          select: {
+            id: true,
+            start_time: true,
+            end_time: true,
+            duration: true,
+            created_at: true,
+          },
+          orderBy: { start_time: 'asc' },
+        },
       },
     });
 
-    // Consultar incidencias relevantes
     const incidences = await this.getRelevantIncidences(
       partner_id,
       profile_id,
@@ -191,13 +217,13 @@ export class ReportsService {
       employees.map(e => e.id)
     );
 
-    // Procesar datos de empleados
     const report = this.processEmployeesData(
       employees,
       incidences,
       limit_to_8_hours || false,
       finalStartDate,
-      finalEndDate
+      finalEndDate,
+      rounding,
     );
 
     return report;
@@ -212,43 +238,28 @@ export class ReportsService {
   ): Promise<IncidenceData[]> {
     const where: any = {
       AND: [
-        {
-          start_date: { lte: end_date },
-        },
-        {
-          end_date: { gte: start_date },
-        },
+        { start_date: { lte: end_date } },
+        { end_date: { gte: start_date } },
       ],
     };
-    if(partner_id) where.partner_id = partner_id;
+    if (partner_id) where.partner_id = partner_id;
 
     const incidences = await this.prisma.incidence.findMany({
       where,
       include: {
-        employees: {
-          select: { id: true },
-        },
-        profiles: {
-          select: { id: true },
-        },
+        employees: { select: { id: true } },
+        profiles: { select: { id: true } },
       },
     });
 
-    // Filtrar incidencias que aplican a los empleados del reporte
     return incidences.filter((inc) => {
-      // Si es global, aplica a todos
       if (inc.is_global) return true;
-
-      // Si tiene empleados específicos asignados
       const hasEmployee = inc.employees.some((emp) => employee_ids.includes(emp.id));
       if (hasEmployee) return true;
-
-      // Si tiene perfiles asignados y estamos filtrando por perfil
       if (profile_id) {
         const hasProfile = inc.profiles.some((prof) => prof.id === profile_id);
         if (hasProfile) return true;
       }
-
       return false;
     }) as IncidenceData[];
   }
@@ -258,29 +269,48 @@ export class ReportsService {
     incidences: IncidenceData[],
     limitTo8Hours: boolean,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
+    rounding: 'none' | '15' | '30' | '60' = 'none',
   ): Report {
-    // Procesar cada empleado
     const employeeReports: EmployeeReport[] = [];
 
     for (const employee of employees) {
       const employeeIncidences = this.getEmployeeIncidences(employee.id, incidences);
-      
-      // Convertir shifts del empleado al formato correcto
+
+      const employeeInfo = {
+        id: employee.id,
+        first_name: employee.first_name,
+        last_name: employee.last_name,
+        is_responsible: employee.is_responsible,
+        schedule: employee.schedule,
+      };
+
       const shifts: ShiftData[] = employee.employee_shift.map((shift: any) => ({
         ...shift,
-        employee: {
-          id: employee.id,
-          first_name: employee.first_name,
-          last_name: employee.last_name,
-          is_responsible: employee.is_responsible,
-          schedule: employee.schedule,
-        },
+        employee: employeeInfo,
       }));
+
+      // Add task_tracker sessions as synthetic shifts (for app/web tracking)
+      for (const tracker of (employee.task_tracker || [])) {
+        if (!tracker.start_time || !tracker.end_time) continue;
+        shifts.push({
+          id: tracker.id,
+          date: dayjs(tracker.start_time).startOf('day').toDate(),
+          employee_id: employee.id,
+          schedule_session_id: null,
+          shift_clock: [
+            { id: `${tracker.id}-in`, time: new Date(tracker.start_time), terminal_id: 'app' },
+            { id: `${tracker.id}-out`, time: new Date(tracker.end_time), terminal_id: 'app' },
+          ],
+          schedule_session: null,
+          employee: employeeInfo,
+        });
+      }
 
       const employeeReport = this.processEmployeeData(
         {
           id: employee.id,
+          card_id: employee.card_id,
           first_name: employee.first_name,
           last_name: employee.last_name,
           is_responsible: employee.is_responsible,
@@ -292,12 +322,12 @@ export class ReportsService {
         startDate,
         endDate,
         (employee.agreements || []) as AgreementInfo[],
+        rounding,
       );
 
       employeeReports.push(employeeReport);
     }
 
-    // Calcular estadísticas generales
     const statistics = this.calculateStatistics(employeeReports);
 
     return {
@@ -314,31 +344,26 @@ export class ReportsService {
   }
 
   private processEmployeeData(
-    employee: ShiftData['employee'],
+    employee: ShiftData['employee'] & { card_id?: string | null },
     shifts: ShiftData[],
     incidences: IncidenceData[],
     limitTo8Hours: boolean,
     startDate: Date,
     endDate: Date,
     agreements: AgreementInfo[] = [],
+    rounding: 'none' | '15' | '30' | '60' = 'none',
   ): EmployeeReport {
-    // Generar todas las semanas del rango
     const allWeeks = this.getAllWeeksInRange(startDate, endDate);
-    
-    // Agrupar turnos por semana
+
     const weekShiftsMap = new Map<string, ShiftData[]>();
 
     for (const shift of shifts) {
       const { week, year } = getISOWeek(shift.date);
       const weekKey = `${year}-W${String(week).padStart(2, '0')}`;
-
-      if (!weekShiftsMap.has(weekKey)) {
-        weekShiftsMap.set(weekKey, []);
-      }
+      if (!weekShiftsMap.has(weekKey)) weekShiftsMap.set(weekKey, []);
       weekShiftsMap.get(weekKey)!.push(shift);
     }
 
-    // Procesar cada semana (incluyendo semanas sin fichajes)
     const weekReports: WeekReport[] = [];
     let totalHours = 0;
     let totalNormalHours = 0;
@@ -359,6 +384,7 @@ export class ReportsService {
         startDate,
         endDate,
         agreements,
+        rounding,
       );
 
       weekReports.push(weekReport);
@@ -367,8 +393,11 @@ export class ReportsService {
       totalExtraHours += weekReport.extra_hours;
     }
 
+    const months = this.buildMonthReportsFromWeeks(weekReports);
+
     return {
       id: employee.id,
+      card_id: employee.card_id ?? null,
       first_name: employee.first_name,
       last_name: employee.last_name,
       full_name: `${employee.first_name}${employee.last_name ? ' ' + employee.last_name : ''}`,
@@ -376,7 +405,43 @@ export class ReportsService {
       normal_hours: roundHours(totalNormalHours),
       extra_hours: roundHours(totalExtraHours),
       weeks: weekReports,
+      months,
     };
+  }
+
+  private buildMonthReportsFromWeeks(weekReports: WeekReport[]): MonthReport[] {
+    const monthMap = new Map<string, {
+      label: string; year: number; month: number; days: DayReport[];
+    }>();
+
+    for (const week of weekReports) {
+      for (const day of week.days) {
+        const monthKey = dayjs(day.date).format('YYYY-MM');
+        const monthLabel = dayjs(day.date).format('MMMM YYYY');
+        if (!monthMap.has(monthKey)) {
+          monthMap.set(monthKey, {
+            label: monthLabel,
+            year: dayjs(day.date).year(),
+            month: dayjs(day.date).month() + 1,
+            days: [],
+          });
+        }
+        monthMap.get(monthKey)!.days.push(day);
+      }
+    }
+
+    return Array.from(monthMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([monthKey, { label, year, month, days }]) => ({
+        month_label: label,
+        month_key: monthKey,
+        year,
+        month,
+        total_hours: roundHours(days.reduce((s, d) => s + d.total_hours, 0)),
+        normal_hours: roundHours(days.reduce((s, d) => s + d.normal_hours, 0)),
+        extra_hours: roundHours(days.reduce((s, d) => s + d.extra_hours, 0)),
+        days,
+      }));
   }
 
   private processWeekData(
@@ -390,29 +455,22 @@ export class ReportsService {
     startDate: Date,
     endDate: Date,
     agreements: AgreementInfo[] = [],
+    rounding: 'none' | '15' | '30' | '60' = 'none',
   ): WeekReport {
-    // Obtener el rango de fechas de la semana
     const { start: weekStart, end: weekEnd } = getWeekRange(week, year);
-    
-    // Ajustar el rango de la semana al rango del reporte
+
     const effectiveStart = dayjs(weekStart).isAfter(startDate) ? weekStart : startDate;
     const effectiveEnd = dayjs(weekEnd).isBefore(endDate) ? weekEnd : endDate;
-    
-    // Generar todos los días de la semana en el rango
-    const allDates = getAllDatesInRange(effectiveStart, effectiveEnd);
-    
-    // Agrupar turnos por día
-    const dayShiftsMap = new Map<string, ShiftData[]>();
 
+    const allDates = getAllDatesInRange(effectiveStart, effectiveEnd);
+
+    const dayShiftsMap = new Map<string, ShiftData[]>();
     for (const shift of shifts) {
       const dayKey = dayjs(shift.date).format('YYYY-MM-DD');
-      if (!dayShiftsMap.has(dayKey)) {
-        dayShiftsMap.set(dayKey, []);
-      }
+      if (!dayShiftsMap.has(dayKey)) dayShiftsMap.set(dayKey, []);
       dayShiftsMap.get(dayKey)!.push(shift);
     }
 
-    // Procesar cada día (incluyendo días sin fichajes)
     const dayReports: DayReport[] = [];
     let weekTotalHours = 0;
     let weekNormalHours = 0;
@@ -421,7 +479,7 @@ export class ReportsService {
     for (const dayDate of allDates) {
       const dayKey = dayjs(dayDate).format('YYYY-MM-DD');
       const dayShifts = dayShiftsMap.get(dayKey) || [];
-      
+
       const dayReport = this.processDayData(
         dayShifts,
         incidences,
@@ -430,6 +488,7 @@ export class ReportsService {
         isResponsible,
         limitTo8Hours,
         agreements,
+        rounding,
       );
 
       dayReports.push(dayReport);
@@ -438,7 +497,6 @@ export class ReportsService {
       weekExtraHours += dayReport.extra_hours;
     }
 
-    // Formatear el rango efectivo de la semana (no el rango ISO completo)
     const effectiveWeekRange = allDates.length > 0
       ? `${dayjs(allDates[0]).format('DD/MM')} - ${dayjs(allDates[allDates.length - 1]).format('DD/MM')}`
       : formatWeekRange(week, year);
@@ -462,33 +520,30 @@ export class ReportsService {
     isResponsible: boolean,
     limitTo8Hours: boolean,
     agreements: AgreementInfo[] = [],
+    rounding: 'none' | '15' | '30' | '60' = 'none',
   ): DayReport {
-    // Verificar si hay incidencias que afectan este día
     const dayIncidences = incidences.filter((inc) =>
       doesIncidenceAffectDay(inc.start_date, inc.end_date, date)
     );
 
     const hasIncidence = dayIncidences.length > 0;
 
-    // Verificar si el día es festivo según el convenio del empleado
     const { isHoliday: isAgreementHolidayDay, holidayName: agreementHolidayName } =
       checkAgreementHoliday(date, agreements);
 
-    // Verificar si el día es laborable según el horario
     const isScheduledWorkDay = schedule ? isWorkingDay(date, schedule.days) : true;
 
-    // Información de la incidencia principal (si hay múltiples, tomar la primera)
     let incidenceName: string | undefined;
     let incidenceType: string | undefined;
     let incidencePaid: boolean | undefined;
 
-    // Diccionario de nombres de tipos de incidencia
     const typeNames: Record<string, string> = {
       holiday: 'Vacaciones',
       festive: 'Festivo',
       absence: 'Ausencia',
       medical_leave: 'Baja Médica',
       personal_leave: 'Permiso Personal',
+      sindical_leave: 'Baja Sindical',
       medical_visit: 'Visita Médica',
       union_hours: 'Horas Sindicales',
       leave_of_absence: 'Excedencia',
@@ -497,49 +552,41 @@ export class ReportsService {
     };
 
     if (hasIncidence) {
-      // Las incidencias registradas tienen prioridad
       const mainIncidence = dayIncidences[0];
       incidenceType = mainIncidence.type;
       incidencePaid = mainIncidence.paid;
-
       const typeName = typeNames[mainIncidence.type] || mainIncidence.type;
       const paidStatus = mainIncidence.paid ? 'Pagada' : 'No pagada';
       incidenceName = `${typeName} (${paidStatus})`;
     } else if (isAgreementHolidayDay) {
-      // Festivo según convenio (sábado/domingo configurado o fecha específica)
       incidenceType = 'festive';
       incidencePaid = false;
       incidenceName = agreementHolidayName || 'Festivo (Convenio)';
     } else if (!isScheduledWorkDay && shifts.length === 0) {
-      // Si no hay fichaje y el día no está en el horario, es festivo
       incidenceType = 'festive';
       incidencePaid = false;
       incidenceName = 'Festivo';
     }
 
-    // Procesar sesiones
     const sessionReports: SessionReport[] = [];
     let dayTotalHours = 0;
 
     for (const shift of shifts) {
-      const sessionReport = this.processSessionData(shift, dayIncidences, isResponsible);
+      const sessionReport = this.processSessionData(shift, dayIncidences, isResponsible, rounding);
       sessionReports.push(sessionReport);
       dayTotalHours += sessionReport.hours;
     }
 
-    // Si no hay turnos pero hay incidencia paga de todo el día, calcular horas del horario
     if (shifts.length === 0 && hasIncidence) {
       const paidAllDayIncidences = dayIncidences.filter((inc) => inc.paid && inc.all_day);
-      
+
       if (paidAllDayIncidences.length > 0 && schedule && schedule.sessions) {
-        // Calcular horas totales del horario para este día
         const scheduledHours = schedule.sessions.reduce((sum, session) => {
           return sum + calculateHoursBetween(session.start_time, session.end_time);
         }, 0);
 
         dayTotalHours = scheduledHours;
 
-        // Crear sesiones ficticias para mostrar
         for (const session of schedule.sessions) {
           const sessionHours = calculateHoursBetween(session.start_time, session.end_time);
           sessionReports.push({
@@ -559,12 +606,8 @@ export class ReportsService {
       }
     }
 
-    // Si el empleado es responsable, limitar horas a 8
-    if (isResponsible && dayTotalHours > 8) {
-      dayTotalHours = 8;
-    }
+    if (isResponsible && dayTotalHours > 8) dayTotalHours = 8;
 
-    // Si es festivo según el convenio, todas las horas son extra
     let normal_hours: number;
     let extra_hours: number;
     if (isAgreementHolidayDay && !isResponsible) {
@@ -574,20 +617,11 @@ export class ReportsService {
       ({ normal_hours, extra_hours } = calculateNormalAndExtraHours(dayTotalHours, limitTo8Hours || isResponsible));
     }
 
-    // Determinar información del horario
     let scheduleInfo = 'Sin horario';
-    if (schedule) {
-      scheduleInfo = schedule.name;
-    }
+    if (schedule) scheduleInfo = schedule.name;
 
-    // Si hay incidencia, festivo de convenio o día no laborable, mostrar esa información
-    const hasSpecialDay =
-      hasIncidence ||
-      isAgreementHolidayDay ||
-      (!isScheduledWorkDay && shifts.length === 0);
-    if (hasSpecialDay && incidenceName) {
-      scheduleInfo = incidenceName;
-    }
+    const hasSpecialDay = hasIncidence || isAgreementHolidayDay || (!isScheduledWorkDay && shifts.length === 0);
+    if (hasSpecialDay && incidenceName) scheduleInfo = incidenceName;
 
     return {
       date: dayjs(date).format('YYYY-MM-DD'),
@@ -603,10 +637,14 @@ export class ReportsService {
     };
   }
 
-  private processSessionData(shift: ShiftData, incidences: IncidenceData[], isResponsible: boolean): SessionReport {
+  private processSessionData(
+    shift: ShiftData,
+    incidences: IncidenceData[],
+    isResponsible: boolean,
+    rounding: 'none' | '15' | '30' | '60' = 'none',
+  ): SessionReport {
     const { shift_clock, schedule_session, date } = shift;
 
-    // Verificar incidencias
     const sessionIncidences = incidences.filter((inc) =>
       doesIncidenceAffectDay(inc.start_date, inc.end_date, date)
     );
@@ -615,7 +653,6 @@ export class ReportsService {
     const hasPaidIncidence = sessionIncidences.some((inc) => inc.paid);
     const hasUnpaidIncidence = sessionIncidences.some((inc) => !inc.paid);
 
-    // Si hay incidencia no paga, las horas son 0
     if (hasUnpaidIncidence) {
       return {
         schedule_start: schedule_session?.start_time || null,
@@ -632,14 +669,12 @@ export class ReportsService {
       };
     }
 
-    // Si hay marcaciones, calcular horas trabajadas
     if (shift_clock && shift_clock.length > 0) {
-      const clockTimes = shift_clock.map((clock) => clock.time);
+      const rawTimes = shift_clock.map((clock) => clock.time);
+      const clockTimes = applyRoundingToClocks(rawTimes, rounding);
       let { hours, clockIn, clockOut, breakStart, breakEnd } = calculateWorkedHours(clockTimes);
 
-      // Si el empleado es responsable y trabaja más de 8 horas, ajustar clockIn
       if (isResponsible && hours > 8 && clockIn && clockOut) {
-        // Ajustar clockIn para que solo se muestren 8 horas
         const adjustedClockIn = dayjs(clockOut).subtract(8, 'hour').toDate();
         clockIn = adjustedClockIn;
         hours = 8;
@@ -660,7 +695,6 @@ export class ReportsService {
       };
     }
 
-    // Si hay incidencia paga pero no hay marcaciones, contar horas del horario
     if (hasPaidIncidence && schedule_session) {
       const scheduledHours = calculateHoursBetween(
         schedule_session.start_time,
@@ -682,7 +716,6 @@ export class ReportsService {
       };
     }
 
-    // Sin marcaciones y sin incidencia paga
     return {
       schedule_start: schedule_session?.start_time || null,
       schedule_end: schedule_session?.end_time || null,
@@ -700,21 +733,18 @@ export class ReportsService {
   private getAllWeeksInRange(startDate: Date, endDate: Date): Array<{ week: number; year: number }> {
     const weeks: Array<{ week: number; year: number }> = [];
     const seenWeeks = new Set<string>();
-    
+
     let currentDate = dayjs(startDate).startOf('day');
     const end = dayjs(endDate).startOf('day');
 
     while (currentDate.isBefore(end) || currentDate.isSame(end)) {
       const { week, year } = getISOWeek(currentDate.toDate());
       const weekKey = `${year}-W${week}`;
-      
       if (!seenWeeks.has(weekKey)) {
         seenWeeks.add(weekKey);
         weeks.push({ week, year });
       }
-      
-      // Avanzar a la próxima semana
-      currentDate = currentDate.add(1, 'week');
+      currentDate = currentDate.add(1, 'day');
     }
 
     return weeks.sort((a, b) => {

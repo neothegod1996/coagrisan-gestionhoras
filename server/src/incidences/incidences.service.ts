@@ -7,6 +7,8 @@ import { role } from '@prisma/client';
 import * as dayjs from 'dayjs';
 import { QueryIncidenceDto } from './dto/query-incidence.dto';
 import { AssignIncidenceDto } from './dto/assign-incidence.dto';
+import { CreateIncidenceCategoryDto } from './dto/create-incidence-category.dto';
+import { UpdateIncidenceCategoryDto } from './dto/update-incidence-category.dto';
 
 @Injectable()
 export class IncidencesService {
@@ -40,6 +42,19 @@ export class IncidencesService {
       body.employee_ids = [user.employee?.id!];
       body.profile_ids = [];
     }
+
+    // Derive type from category if not explicitly provided
+    if (!body.type && body.category_id) {
+      const category = await this.prisma.incidence_category.findUnique({
+        where: { id: body.category_id },
+        select: { type: true, paid: true },
+      });
+      if (category) {
+        body.type = category.type;
+        if (body.paid === undefined) body.paid = category.paid;
+      }
+    }
+    if (!body.type) body.type = 'other';
 
     const { employee_ids, profile_ids, ...data } = body;
     const employees = (body.employee_ids) ? await this.prisma.employee.findMany({
@@ -83,6 +98,7 @@ export class IncidencesService {
     const incidence = await this.prisma.incidence.create({
       data: {
         ...data,
+        type: data.type ?? 'other',
         partner_id: partner_id!,
         start_date,
         end_date,
@@ -189,8 +205,8 @@ export class IncidencesService {
         const { _count, ...incidenceData } = incidence;
         return {
           ...incidenceData,
-          employees: _count.employees,
-          profiles: _count.profiles
+          employees_count: _count.employees,
+          profiles_count: _count.profiles,
         }
       }),
       total: count,
@@ -419,5 +435,73 @@ export class IncidencesService {
       type,
       total_hours: Math.round(total_hours * 100) / 100, // Round to 2 decimal places
     }));
+  }
+
+  // Categories CRUD
+  async createCategory(user: User, body: CreateIncidenceCategoryDto) {
+    const { partner_id: body_partner_id, ...data } = body;
+    const partner_id = user.role === role.admin ? (body_partner_id || user.partner_id) : user.partner_id;
+
+    if (!partner_id) {
+      throw new HttpException('El campo "partner_id" es obligatorio para administradores si no tienen uno asignado', HttpStatus.BAD_REQUEST);
+    }
+
+    return this.prisma.incidence_category.create({
+      data: {
+        ...data,
+        partner_id: partner_id,
+      },
+    });
+  }
+
+  async findAllCategories(user: User, partner_id_query?: string) {
+    const partner_id = user.role === role.admin ? (partner_id_query || user.partner_id) : user.partner_id;
+    
+    const where: any = {};
+    if (partner_id) {
+      where.partner_id = partner_id;
+    }
+    
+    return this.prisma.incidence_category.findMany({
+      where,
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async findOneCategory(user: User, id: string, partner_id_query?: string) {
+    const partner_id = user.role === role.admin ? (partner_id_query || user.id) : user.partner_id;
+    const category = await this.prisma.incidence_category.findFirst({
+      where: { id, partner_id: partner_id! },
+    });
+    if (!category) throw new HttpException('Categoría no encontrada', HttpStatus.NOT_FOUND);
+    return category;
+  }
+
+  async updateCategory(user: User, id: string, body: UpdateIncidenceCategoryDto, partner_id_query?: string) {
+    await this.findOneCategory(user, id, partner_id_query);
+    return this.prisma.incidence_category.update({
+      where: { id },
+      data: body,
+    });
+  }
+
+  async removeCategory(user: User, id: string, partner_id_query?: string) {
+    await this.findOneCategory(user, id, partner_id_query);
+    
+    // Verificar si está en uso
+    const inUseTask = await this.prisma.task_tracker.findFirst({
+      where: { incidence_category_id: id },
+    });
+    const inUseIncidence = await this.prisma.incidence.findFirst({
+      where: { category_id: id },
+    });
+
+    if (inUseTask || inUseIncidence) {
+      throw new HttpException('No se puede eliminar la categoría porque está en uso', HttpStatus.BAD_REQUEST);
+    }
+
+    return this.prisma.incidence_category.delete({
+      where: { id },
+    });
   }
 }

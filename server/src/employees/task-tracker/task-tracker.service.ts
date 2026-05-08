@@ -2,6 +2,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateTaskTrackerDto } from './dto/create-task-tracker.dto';
 import { UpdateTaskTrackerDto } from './dto/update-task-tracker.dto';
 import { PaginationTaskTrackerDto } from './dto/pagination-task-tracker.dto';
+import { BulkApproveDto } from './dto/bulk-approve.dto';
 import { PrismaService } from 'src/prisma.service';
 import { User } from 'src/types';
 import * as dayjs from 'dayjs';
@@ -9,7 +10,7 @@ import { role } from '@prisma/client';
 
 @Injectable()
 export class TaskTrackerService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async create(body: CreateTaskTrackerDto, user: User, ip?: string) {
     const employeeId = await this.ensureEmployeeId(user);
@@ -25,8 +26,7 @@ export class TaskTrackerService {
       startTime = this.roundStartTime(new Date());
     }
 
-    console.log(`TASK CREATE: Status=${body.status}, Original=${body.start_time || 'now'} -> Result=${startTime}`);
-
+    const referenceDate = startTime || new Date();
     const employee = await this.prisma.employee.findFirst({
       where: {
         id: employeeId,
@@ -43,11 +43,14 @@ export class TaskTrackerService {
       throw new HttpException('El empleado no está en estado Alta/Activo', HttpStatus.FORBIDDEN);
     }
 
+    // Validación 8h para incidencias
+    if (body.incidence_category_id) {
+      await this.validateIncidence8h(employeeId, body.incidence_category_id, referenceDate, body.duration);
+    }
+
     const employeePartnerId = employee.partner_id;
 
-
     // Capture Snapshots
-    const referenceDate = startTime || new Date();
     const snapshots = await this.getTrackSnapshots(employee.id, referenceDate);
 
     const employeeShiftData = {
@@ -60,7 +63,7 @@ export class TaskTrackerService {
       const taskTracker = await tx.task_tracker.create({
         data: {
           ...body,
-          start_time: startTime, // Puede ser null
+          start_time: startTime,
           employee_id: employee.id,
           schedule_snapshot_id: snapshots.activeScheduleId,
           schedule_snapshot_name: snapshots.activeScheduleName,
@@ -70,6 +73,8 @@ export class TaskTrackerService {
           latitude: body.latitude,
           longitude: body.longitude,
           terminal_id: body.terminal_id,
+          incidence_category_id: body.incidence_category_id,
+          is_paid: body.is_paid,
         },
       });
 
@@ -169,6 +174,13 @@ export class TaskTrackerService {
               name: true,
             }
           },
+          incidence_category: {
+            select: {
+              id: true,
+              name: true,
+              paid: true,
+            }
+          },
         },
         orderBy: {
           created_at: 'desc',
@@ -242,6 +254,13 @@ export class TaskTrackerService {
             name: true,
           }
         },
+        incidence_category: {
+          select: {
+            id: true,
+            name: true,
+            paid: true,
+          }
+        },
       },
     });
 
@@ -264,6 +283,22 @@ export class TaskTrackerService {
         throw new HttpException('Task tracker not found', HttpStatus.NOT_FOUND);
       }
 
+      // Bloqueo si está aprobado
+      if (task.is_approved) {
+        const adminCanEdit = process.env.ADMIN_CAN_EDIT_APPROVED === 'true';
+        if (!(adminCanEdit && user.role === role.admin)) {
+          throw new HttpException('No se puede editar un registro que ya ha sido aprobado', HttpStatus.FORBIDDEN);
+        }
+      }
+
+      // Validación 8h si cambia la incidencia o duración
+      const newIncidenceId = body.incidence_category_id || task.incidence_category_id;
+      if (newIncidenceId) {
+        const referenceDate = body.start_time ? new Date(body.start_time) : task.start_time || new Date();
+        const newDuration = body.duration !== undefined ? body.duration : task.duration;
+        await this.validateIncidence8h(employeeId, newIncidenceId, referenceDate, newDuration, id);
+      }
+
       const updateData: any = { ...body };
 
       let startHasChanged = false;
@@ -271,7 +306,6 @@ export class TaskTrackerService {
 
       if (body.start_time) {
         const newStartTime = this.roundStartTime(new Date(body.start_time));
-        console.log(`TASK UPDATE START: Original ${body.start_time} -> Rounded ${newStartTime}`);
         if (task.start_time && !dayjs(newStartTime).isSame(dayjs(task.start_time))) {
           startHasChanged = true;
         }
@@ -280,7 +314,6 @@ export class TaskTrackerService {
 
       if (body.end_time) {
         const newEndTime = this.roundEndTime(new Date(body.end_time));
-        console.log(`TASK UPDATE END: Task=${id}, Employee=${employeeId}, Rounded=${newEndTime}`);
         if (task.end_time && !dayjs(newEndTime).isSame(dayjs(task.end_time))) {
           endHasChanged = true;
         }
@@ -290,7 +323,7 @@ export class TaskTrackerService {
       // Recalculate duration if we have both values
       let currentStart = updateData.start_time || task.start_time;
       let currentEnd = updateData.end_time || task.end_time;
-      
+
       if (currentStart && currentEnd) {
         updateData.duration = dayjs(currentEnd).diff(dayjs(currentStart), 'seconds');
       }
@@ -299,13 +332,12 @@ export class TaskTrackerService {
       if (updateData.status === 'running' || (body.start_time && !task.start_time)) {
         const referenceRoundingDate = updateData.start_time || new Date();
         const snapshots = await this.getTrackSnapshots(employeeId, referenceRoundingDate);
-        
+
         updateData.schedule_snapshot_id = snapshots.activeScheduleId;
         updateData.schedule_snapshot_name = snapshots.activeScheduleName;
         updateData.agreement_snapshot_id = snapshots.agreementId;
         updateData.agreement_snapshot_name = snapshots.agreementName;
-        
-        console.log(`SNAPSHOTS CAPTURED ON START: Schedule=${snapshots.activeScheduleName}, Agreement=${snapshots.agreementName}`);
+
       }
 
       const taskTracker = await tx.task_tracker.update({
@@ -378,7 +410,7 @@ export class TaskTrackerService {
       }
 
       let terminal: any = null;
-      
+
       if (user.partner_id) {
         terminal = await tx.terminal.findFirst({
           where: { partner_id: user.partner_id },
@@ -426,8 +458,81 @@ export class TaskTrackerService {
       throw new HttpException('Task tracker not found', HttpStatus.NOT_FOUND);
     }
 
+    // Bloqueo si está aprobado
+    const task = await this.prisma.task_tracker.findUnique({ where: { id } });
+    if (task?.is_approved) {
+      const adminCanEdit = process.env.ADMIN_CAN_EDIT_APPROVED === 'true';
+      if (!(adminCanEdit && user.role === role.admin)) {
+        throw new HttpException('No se puede eliminar un registro que ya ha sido aprobado', HttpStatus.FORBIDDEN);
+      }
+    }
+
     await this.prisma.task_tracker.delete({
       where: { id },
+    });
+  }
+
+  async bulkApprove(body: BulkApproveDto, user: User) {
+    const { ids } = body;
+    const now = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      const results = {
+        approved: 0,
+        closed_and_approved: 0,
+        ignored: 0,
+      };
+
+      for (const id of ids) {
+        const task = await tx.task_tracker.findUnique({
+          where: { id },
+        });
+
+        if (!task || task.is_approved) {
+          results.ignored++;
+          continue;
+        }
+
+        if (task.status === 'running') {
+          // Si está corriendo, la cerramos con el redondeo correspondiente
+          const roundedEndTime = this.roundEndTime(now);
+          const duration = dayjs(roundedEndTime).diff(dayjs(task.start_time), 'seconds');
+
+          await tx.task_tracker.update({
+            where: { id },
+            data: {
+              end_time: roundedEndTime,
+              duration: Math.max(0, duration),
+              status: 'completed',
+              is_approved: true,
+              updated_at: now,
+            },
+          });
+          // También aprobamos los relojes asociados
+          await tx.employee_shift_clock.updateMany({
+            where: { session_id: id },
+            data: { status: 'approved' }
+          });
+          results.closed_and_approved++;
+        } else {
+          // Si ya estaba completa o pendiente, simplemente aprobamos
+          await tx.task_tracker.update({
+            where: { id },
+            data: {
+              is_approved: true,
+              updated_at: now,
+            },
+          });
+          // También aprobamos los relojes asociados
+          await tx.employee_shift_clock.updateMany({
+            where: { session_id: id },
+            data: { status: 'approved' }
+          });
+          results.approved++;
+        }
+      }
+
+      return results;
     });
   }
 
@@ -462,8 +567,7 @@ export class TaskTrackerService {
   }
 
   public async getTrackSnapshots(employeeId: string, referenceDate: Date) {
-    console.log(`DEBUG SNAPSHOTS: Starting for Employee=${employeeId}, Date=${referenceDate.toISOString()}`);
-    
+
     const employee = await this.prisma.employee.findFirst({
       where: { id: employeeId },
       include: { schedule: true },
@@ -501,16 +605,16 @@ export class TaskTrackerService {
       const dynamicSchedule = activeSchedules[0];
       activeScheduleId = dynamicSchedule.schedule_id;
       activeScheduleName = dynamicSchedule.schedule?.name;
-      
+
       console.log(`DEBUG SNAPSHOTS: Using Dynamic Schedule: ${activeScheduleName}`);
       const session = await this.getClosestScheduleSession(dynamicSchedule.schedule_id, referenceDate);
       if (session) {
         scheduleSessionId = session.id;
       }
     } else if (employee.schedule_id) {
-       console.log(`DEBUG SNAPSHOTS: Falling back to base schedule: ${employee.schedule?.name}`);
-       const session = await this.getClosestScheduleSession(employee.schedule_id, referenceDate);
-       scheduleSessionId = session?.id || null;
+      console.log(`DEBUG SNAPSHOTS: Falling back to base schedule: ${employee.schedule?.name}`);
+      const session = await this.getClosestScheduleSession(employee.schedule_id, referenceDate);
+      scheduleSessionId = session?.id || null;
     }
 
     const employeeAgreement = await this.prisma.employee_agreement.findFirst({
@@ -593,6 +697,31 @@ export class TaskTrackerService {
       return d.add(1, 'hour').startOf('hour').toDate();
     } else {
       return d.startOf('hour').toDate();
+    }
+  }
+
+  private async validateIncidence8h(employeeId: string, categoryId: string, date: Date, currentDurationSecs?: number | null, excludeId?: string) {
+    const startOfDay = dayjs(date).startOf('day').toDate();
+    const endOfDay = dayjs(date).endOf('day').toDate();
+
+    const existingTasks = await this.prisma.task_tracker.findMany({
+      where: {
+        employee_id: employeeId,
+        incidence_category_id: categoryId,
+        start_time: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+        id: excludeId ? { not: excludeId } : undefined,
+      },
+      select: { duration: true },
+    });
+
+    const totalSeconds = existingTasks.reduce((sum, task) => sum + (task.duration || 0), 0) + (currentDurationSecs || 0);
+    const totalHours = totalSeconds / 3600;
+
+    if (totalHours > 8) {
+      throw new HttpException(`La suma de horas para esta incidencia excede el límite de 8h diarias (Total actual: ${totalHours.toFixed(2)}h)`, HttpStatus.BAD_REQUEST);
     }
   }
 }

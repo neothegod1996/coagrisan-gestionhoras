@@ -1,10 +1,7 @@
-import { IncidenceTypeEnum } from "../types/incidence";
 import z from "zod";
 
 export const incidenceFormSchema = z.object({
-  type: z.nativeEnum(IncidenceTypeEnum, {
-    error: "El tipo de incidencia es obligatorio",
-  }),
+  category_id: z.string().min(1, "La categoría es obligatoria"),
   description: z.string().optional(),
   all_day: z.boolean(),
   is_global: z.boolean(),

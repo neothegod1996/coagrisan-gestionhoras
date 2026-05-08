@@ -35,15 +35,28 @@ export class WeekReport {
   days: DayReport[];
 }
 
+export class MonthReport {
+  month_label: string;
+  month_key: string;
+  year: number;
+  month: number;
+  total_hours: number;
+  normal_hours: number;
+  extra_hours: number;
+  days: DayReport[];
+}
+
 export class EmployeeReport {
   id: string;
   first_name: string;
   last_name: string | null;
   full_name: string;
+  card_id: string | null;
   total_hours: number;
   normal_hours: number;
   extra_hours: number;
   weeks: WeekReport[];
+  months: MonthReport[];
 }
 
 export class ReportStatistics {
@@ -58,4 +71,3 @@ export class Report {
   statistics: ReportStatistics;
   employees: EmployeeReport[];
 }
-

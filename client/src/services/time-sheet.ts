@@ -14,7 +14,6 @@ export async function getTimeSheets(params?: TimeSheetParams) {
                 partner_id: localStorage.getItem('partner_id'),
             },
         });
-        console.log('TimeSheets response:', response.data);
         return response.data;
     } catch (error) {
         return null;
@@ -54,12 +53,6 @@ export async function createTimeSheet(data: TimeSheetFormData) {
 
 export async function updateTimeSheet(taskTrackerId: string, startId: string, endId: string, data: { start_time?: string; end_time?: string; status?: string }) {
     const token = await getAccessToken();
-    console.log('Updating time sheet with data:', {
-        taskTrackerId,
-        startId,
-        endId,
-        ...data,
-    });
     try {
         let url = `/api/time-sheet/${taskTrackerId}`;
         if (endId) {

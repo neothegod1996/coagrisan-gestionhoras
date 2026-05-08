@@ -69,6 +69,8 @@ export class EmployeeShiftClockService {
           id: true,
           name: true,
           status: true,
+          is_approved: true,
+          duration: true,
           start_time: true,
           end_time: true,
           created_at: true,
@@ -152,18 +154,25 @@ export class EmployeeShiftClockService {
       const clocksBySession = shiftClocks.filter(clock => clock.session_id === tracker.id);
 
       if (clocksBySession.length > 0) {
-        const start = clocksBySession[0] || null;
-        const end = clocksBySession.length > 1 ? clocksBySession[clocksBySession.length - 1] : null;
+        const startClock = clocksBySession[0] || null;
+        const endClock = clocksBySession.length > 1 ? clocksBySession[clocksBySession.length - 1] : null;
+        const duration = tracker.duration && tracker.duration > 0
+          ? tracker.duration
+          : (startClock && endClock
+            ? Math.max(0, dayjs(endClock.time ?? endClock.created_at).diff(dayjs(startClock.time ?? startClock.created_at), 'second'))
+            : null);
         return {
           task_tracker_id: tracker.id,
           name: tracker.name,
           status: tracker.status,
+          is_approved: tracker.is_approved,
+          duration,
           employee: tracker.employee,
           is_modified,
           start_time_modified,
           end_time_modified,
-          start,
-          end,
+          start: startClock ? { ...startClock, status: tracker.is_approved ? 'approved' : startClock.status } : null,
+          end: endClock ? { ...endClock, status: tracker.is_approved ? 'approved' : endClock.status } : null,
         };
       }
 
@@ -255,16 +264,23 @@ export class EmployeeShiftClockService {
         }
       }
 
+      const fallbackDuration = tracker.duration && tracker.duration > 0
+        ? tracker.duration
+        : (start && end
+          ? Math.max(0, dayjs(end.time ?? end.created_at).diff(dayjs(start.time ?? start.created_at), 'second'))
+          : null);
       return {
         task_tracker_id: tracker.id,
         name: tracker.name,
         status: tracker.status,
+        is_approved: tracker.is_approved,
+        duration: fallbackDuration,
         employee: tracker.employee,
         is_modified,
         start_time_modified,
         end_time_modified,
-        start,
-        end,
+        start: start ? { ...start, status: tracker.is_approved ? 'approved' : start.status } : null,
+        end: end ? { ...end, status: tracker.is_approved ? 'approved' : end.status } : null,
       };
     }));
 

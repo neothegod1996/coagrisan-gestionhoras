@@ -15,6 +15,7 @@ export interface ReportStatistics {
 
 export interface ReportEmployee {
     id: string
+    card_id: string | null
     first_name: string
     last_name: string
     full_name: string
@@ -22,12 +23,24 @@ export interface ReportEmployee {
     normal_hours: number
     extra_hours: number
     weeks: ReportWeek[]
+    months: ReportMonth[]
 }
 
 export interface ReportWeek {
     week_range: string
     week_number: number
     year: number
+    total_hours: number
+    normal_hours: number
+    extra_hours: number
+    days: ReportDay[]
+}
+
+export interface ReportMonth {
+    month_label: string
+    month_key: string
+    year: number
+    month: number
     total_hours: number
     normal_hours: number
     extra_hours: number
@@ -60,13 +73,27 @@ export interface ReportSession {
     has_incidence: boolean
 }
 
+export type ReportType = 'normal_extra' | 'times_costs' | 'incidences'
+export type BreakdownType = 'daily' | 'weekly' | 'monthly'
+export type RoundingType = 'none' | '15' | '30' | '60'
+
 export interface ReportParams {
     employee_id?: string;
     location_id?: string;
     profile_id?: string;
+    agreement_id?: string;
+    employee_from?: string;
+    employee_to?: string;
     start_date: Date;
     end_date: Date;
     limit_to_8_hours?: boolean;
+    report_type?: ReportType;
+    breakdown_type?: BreakdownType;
+    rounding?: RoundingType;
+    totalize_weekly?: boolean;
+    totalize_monthly?: boolean;
+    totalize_by_employee?: boolean;
+    totalize_by_report?: boolean;
 }
 
 export type ReportResponse = Response<Report>;

@@ -47,7 +47,10 @@ export async function createAgreement(data: AgreementFormData) {
             headers: {
                 Authorization: `Bearer ${token}`,
             },
-            data,
+            data: {
+                ...data,
+                partner_id: localStorage.getItem('partner_id'),
+            },
         });
         return response.data;
     } catch (error) {

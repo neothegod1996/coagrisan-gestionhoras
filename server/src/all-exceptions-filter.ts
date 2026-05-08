@@ -14,7 +14,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    console.log((exception as any))
     // Log seguro para debugging (sin exposer información sensible)
     if (process.env.NODE_ENV === 'development') {
       console.error('Error occurred:', {

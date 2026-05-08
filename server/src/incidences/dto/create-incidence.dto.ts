@@ -2,9 +2,13 @@ import { IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsNotEmpty, IsOptional
 import { incidence_type } from "@prisma/client";
 
 export class CreateIncidenceDto {
-    @IsNotEmpty()
+    @IsOptional()
     @IsEnum(incidence_type)
-    type: incidence_type;
+    type?: incidence_type;
+
+    @IsOptional()
+    @IsString()
+    category_id?: string;
 
     @IsNotEmpty()
     @IsDateString()

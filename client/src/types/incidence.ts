@@ -1,5 +1,13 @@
 import { PaginationResponse, Params, Response } from ".";
 
+export interface IncidenceCategory {
+    id: string;
+    name: string;
+    description?: string;
+    paid: boolean;
+    type: IncidenceTypeEnum;
+}
+
 export interface Incidence {
     id: string;
     start_date?: string;
@@ -12,10 +20,8 @@ export interface Incidence {
     is_global: boolean;
     employees?: { id: string; first_name: string; last_name: string }[];
     profiles?: { id: string; name: string }[];
-    _count?: {
-        employees: number;
-        profiles: number;
-    };
+    employees_count?: number;
+    profiles_count?: number;
 }
 export interface FullIncidence {
     id: string;
@@ -128,8 +134,9 @@ export enum IncidenceShowEnum {
 }
 
 export interface IncidenceFormData {
-    type: IncidenceTypeEnum;
-    description: string;
+    type?: IncidenceTypeEnum;
+    category_id?: string;
+    description?: string;
     all_day: boolean;
     is_global: boolean;
     start_date?: string;

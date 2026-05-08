@@ -1,3 +1,5 @@
+import { BreakdownType, ReportType, RoundingType } from "./report";
+
 export interface TimeEntry {
   id: string;
   employee_id: string;
@@ -34,9 +36,19 @@ export interface TimeTrackingFilters {
   employee_id?: string;
   location_id?: string;
   profile_id?: string;
+  agreement_id?: string;
+  employee_from?: string;
+  employee_to?: string;
   start_date: Date;
   end_date: Date;
   limit_to_8_hours?: boolean;
+  report_type?: ReportType;
+  breakdown_type?: BreakdownType;
+  rounding?: RoundingType;
+  totalize_weekly?: boolean;
+  totalize_monthly?: boolean;
+  totalize_by_employee?: boolean;
+  totalize_by_report?: boolean;
 }
 
 export interface TimeTrackingSummary {

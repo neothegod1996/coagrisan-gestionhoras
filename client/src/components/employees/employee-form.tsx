@@ -236,7 +236,7 @@ export default function EmployeeForm({
       onClose();
       setEmployee({ data: null, loading: true });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       toast.error("Hubo un error al guardar el empleado, por favor intente nuevamente.");
     } finally {
       setIsSubmitting(false);

@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Calendar } from "@/components/ui/calendar";
 import { MultiCombobox } from "@/components/ui/multi-combobox";
-import { FullIncidence, IncidenceTypeEnum } from "@/types/incidence";
+import { FullIncidence, IncidenceCategory, IncidenceTypeEnum } from "@/types/incidence";
 import { useForm } from "react-hook-form";
 import dayjs, { Dayjs } from "dayjs";
 import { Employee } from "@/types/employee";
@@ -20,6 +20,7 @@ import { PaginatedRequestHandler, RequestHandler } from "@/types";
 import { createIncidence, getIncidence, updateIncidence } from "@/services/incidence";
 import { getEmployees } from "@/services/employee";
 import { getProfiles } from "@/services/profile";
+import { getIncidenceCategories } from "@/services/incidence-category";
 import toast from "react-hot-toast";
 import { incidenceFormSchema, IncidenceFormValues } from "@/zod/incidence";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -48,6 +49,7 @@ export default function IncidenceForm({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [employees, setEmployees] = useState<PaginatedRequestHandler<Employee>>({ data: [], loading: false, total_pages: 0, total: 0 });
     const [profiles, setProfiles] = useState<PaginatedRequestHandler<Profile>>({ data: [], loading: false, total_pages: 0, total: 0 });
+    const [categories, setCategories] = useState<IncidenceCategory[]>([]);
     const [employeeSearch, setEmployeeSearch] = useState("");
     const [profileSearch, setProfileSearch] = useState("");
     const [dateRange, setDateRange] = useState<{
@@ -61,7 +63,7 @@ export default function IncidenceForm({
     const form = useForm<IncidenceFormValues>({
         resolver: zodResolver(incidenceFormSchema),
         defaultValues: {
-            type: IncidenceTypeEnum.Holiday,
+            category_id: "",
             description: "",
             all_day: true,
             start_time: "09:00",
@@ -73,12 +75,15 @@ export default function IncidenceForm({
             duration_hours: "",
         },
     });
-    const incidenceType = form.watch('type');
+
+    const selectedCategoryId = form.watch('category_id');
+    const selectedCategory = categories.find(c => c.id === selectedCategoryId) ?? null;
+    const incidenceType = selectedCategory?.type ?? IncidenceTypeEnum.Other;
 
     useEffect(() => {
         if (isOpen && !incidence.data?.id) {
             form.reset({
-                type: IncidenceTypeEnum.Holiday,
+                category_id: "",
                 description: '',
                 all_day: true,
                 start_time: "09:00",
@@ -104,7 +109,7 @@ export default function IncidenceForm({
             const { data } = res || {};
             setIncidence({ data: data || null, loading: false });
             form.reset({
-                type: data?.type,
+                category_id: (data as any)?.category_id ?? "",
                 description: data?.description,
                 all_day: data?.all_day,
                 start_time: dayjs(data?.start_date).format("HH:mm"),
@@ -124,12 +129,17 @@ export default function IncidenceForm({
         });
     }, [isOpen, incidence_id]);
 
-    const watchedType = form.watch("type");
     const isAllDay = form.watch("all_day");
-    const isVacation = watchedType === IncidenceTypeEnum.Holiday;
     const isGlobal = form.watch("is_global");
     const employeeIds = form.watch("employee_ids");
     const profileIds = form.watch("profile_ids");
+
+    useEffect(() => {
+        if (!isOpen) return;
+        getIncidenceCategories().then((res: any) => {
+            if (res?.success) setCategories(res.data as IncidenceCategory[]);
+        });
+    }, [isOpen]);
 
     useEffect(() => {
         if (!isOpen || !isAdminOrManager) return;
@@ -156,25 +166,48 @@ export default function IncidenceForm({
 
         const body: any = {
             ...data,
+            type: incidenceType,
         };
+        // If category has a paid default and user hasn't overridden, apply it
+        if (selectedCategory && body.paid === undefined) {
+            body.paid = selectedCategory.paid;
+        }
         const useDurationHours = [
-            IncidenceTypeEnum.MedicalLeave, 
+            IncidenceTypeEnum.MedicalLeave,
             IncidenceTypeEnum.SindicalLeave,
             IncidenceTypeEnum.MedicalVisit,
             IncidenceTypeEnum.UnionHours,
             IncidenceTypeEnum.LeaveOfAbsence,
-            IncidenceTypeEnum.OvertimeRest
+            IncidenceTypeEnum.OvertimeRest,
         ].includes(incidenceType);
         if (!dateRange.from || !dateRange.to) return;
         if (isAllDay) {
+            // All-day always uses a date range, never duration_hours
             body.start_date = dateRange.from.startOf('day').toISOString();
-            useDurationHours ? body.duration_hours = Number(body.duration_hours) : body.end_date = dateRange.to.endOf('day').toISOString();
+            body.end_date = dateRange.to.endOf('day').toISOString();
+            delete body.duration_hours;
         } else {
             const start_time = data.start_time;
             const end_time = data.end_time;
             body.start_date = dateRange.from.set('hour', Number(start_time?.split(':')[0])).set('minute', Number(start_time?.split(':')[1])).toISOString();
-            useDurationHours ? body.duration_hours = Number(body.duration_hours) : body.end_date = dateRange.to.set('hour', Number(end_time?.split(':')[0])).set('minute', Number(end_time?.split(':')[1])).toISOString();
+            if (useDurationHours) {
+                const hours = Number(body.duration_hours);
+                if (!hours || hours < 1) {
+                    toast.error("El número de horas debe ser al menos 1");
+                    setIsSubmitting(false);
+                    return;
+                }
+                body.duration_hours = hours;
+                delete body.end_date;
+            } else {
+                body.end_date = dateRange.to.set('hour', Number(end_time?.split(':')[0])).set('minute', Number(end_time?.split(':')[1])).toISOString();
+                delete body.duration_hours;
+            }
         }
+
+        // Remove form-only fields that the server doesn't expect
+        delete body.start_time;
+        delete body.end_time;
 
         let res: any = null;
         if (incidence_id) {
@@ -249,50 +282,35 @@ export default function IncidenceForm({
                                 <div className="space-y-4">
                                     <FormField
                                         control={form.control}
-                                        name="type"
+                                        name="category_id"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel className="text-sm font-medium text-slate-700">Tipo de incidencia *</FormLabel>
-                                                <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormLabel className="text-sm font-medium text-slate-700">Categoría *</FormLabel>
+                                                <Select
+                                                    onValueChange={(val) => {
+                                                        field.onChange(val);
+                                                        const cat = categories.find(c => c.id === val);
+                                                        if (cat) form.setValue('paid', cat.paid);
+                                                    }}
+                                                    value={field.value}
+                                                >
                                                     <FormControl>
                                                         <SelectTrigger className="h-10 border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary">
-                                                            <SelectValue placeholder="Selecciona el tipo" />
+                                                            <SelectValue placeholder="Selecciona una categoría" />
                                                         </SelectTrigger>
                                                     </FormControl>
                                                     <SelectContent>
-                                                        <SelectItem value={IncidenceTypeEnum.Holiday}>
-                                                            Vacaciones
-                                                        </SelectItem>
-                                                        <SelectItem value={IncidenceTypeEnum.Festive}>
-                                                            Festivo
-                                                        </SelectItem>
-                                                        <SelectItem value={IncidenceTypeEnum.Absence}>
-                                                            Ausencia
-                                                        </SelectItem>
-                                                        <SelectItem value={IncidenceTypeEnum.MedicalLeave}>
-                                                            Baja médica
-                                                        </SelectItem>
-                                                        <SelectItem value={IncidenceTypeEnum.PersonalLeave}>
-                                                            Baja personal
-                                                        </SelectItem>
-                                                        <SelectItem value={IncidenceTypeEnum.SindicalLeave}>
-                                                            Baja sindical
-                                                        </SelectItem>
-                                                        <SelectItem value={IncidenceTypeEnum.MedicalVisit}>
-                                                            Visita médica
-                                                        </SelectItem>
-                                                        <SelectItem value={IncidenceTypeEnum.UnionHours}>
-                                                            Horas sindicales
-                                                        </SelectItem>
-                                                        <SelectItem value={IncidenceTypeEnum.LeaveOfAbsence}>
-                                                            Excedencia
-                                                        </SelectItem>
-                                                        <SelectItem value={IncidenceTypeEnum.OvertimeRest}>
-                                                            Descanso exceso tiempo
-                                                        </SelectItem>
-                                                        <SelectItem value={IncidenceTypeEnum.Other}>
-                                                            Otra
-                                                        </SelectItem>
+                                                        {categories.length === 0 ? (
+                                                            <SelectItem value="__empty__" disabled>
+                                                                Sin categorías — crea una primero
+                                                            </SelectItem>
+                                                        ) : (
+                                                            categories.map((cat) => (
+                                                                <SelectItem key={cat.id} value={cat.id}>
+                                                                    {cat.name}
+                                                                </SelectItem>
+                                                            ))
+                                                        )}
                                                     </SelectContent>
                                                 </Select>
                                                 <FormMessage />

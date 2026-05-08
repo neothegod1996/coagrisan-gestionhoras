@@ -29,6 +29,9 @@ export interface TimeSheetFormData {
   end_time: string;
   status: 'pending' | 'approved';
   notes?: string;
+  name?: string;
+  incidence_category_id?: string;
+  is_paid?: boolean;
 }
 
 export interface TimeSheetFilters {

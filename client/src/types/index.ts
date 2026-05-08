@@ -22,6 +22,8 @@ export interface PaginatedRequestHandler<Data> {
 export interface RequestHandler<Data> {
     data: Data;
     loading: boolean;
+    success?: boolean;
+    message?: string;
 }
 
 export interface Params {
