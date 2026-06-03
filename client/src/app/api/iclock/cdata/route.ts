@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     try {
         const response = await axios.request({
             method: 'GET',
-            url: `${API_URL}/api/iclock/cdata`,
+            url: `${API_URL}/iclock/cdata`,
             params: searchParams,
             responseType: 'text' 
         });
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     try {
         const response = await axios.request({
             method: 'POST',
-            url: `${API_URL}/api/iclock/cdata`,
+            url: `${API_URL}/iclock/cdata`,
             params: searchParams,
             data: rawBody,
             headers: {

@@ -642,14 +642,12 @@ export class ZktecoController {
       </div>
     </div>
     <div class="header-actions">
-      <a href="/iclock/logs" class="btn btn-primary">
+      <button onclick="window.location.reload()" class="btn btn-primary">
         🔄 Refrescar
-      </a>
-      <form action="/iclock/logs/clear" method="POST" style="margin: 0;" onsubmit="return confirm('¿Estás seguro de que deseas vaciar todos los registros?');">
-        <button type="submit" class="btn btn-danger">
-          🗑️ Limpiar Logs
-        </button>
-      </form>
+      </button>
+      <button onclick="clearLogs()" class="btn btn-danger">
+        🗑️ Limpiar Logs
+      </button>
     </div>
   </header>
 
@@ -682,11 +680,11 @@ export class ZktecoController {
     </div>
 
     <!-- Barra de Búsqueda/Filtro -->
-    <form class="filter-bar" method="GET" action="/iclock/logs">
+    <form class="filter-bar" method="GET" action="">
       <label for="SN">Filtrar por Número de Serie (SN):</label>
       <input type="text" id="SN" name="SN" placeholder="Ej: SN_DISPOSITIVO_01" value="${filterSN || ''}">
       <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem;">Filtrar</button>
-      ${filterSN ? '<a href="/iclock/logs" class="btn" style="color: var(--text-muted); border: 1px solid var(--card-border);">Quitar Filtro</a>' : ''}
+      ${filterSN ? '<a href="?" class="btn" style="color: var(--text-muted); border: 1px solid var(--card-border);">Quitar Filtro</a>' : ''}
     </form>
 
     <!-- Lista de Logs -->
@@ -781,6 +779,26 @@ export class ZktecoController {
       }).join('')}
     </div>
   </main>
+  
+  <script>
+    async function clearLogs() {
+      if (!confirm('¿Estás seguro de que deseas vaciar todos los registros?')) return;
+      try {
+        let path = window.location.pathname;
+        if (path.endsWith('/')) {
+          path = path.slice(0, -1);
+        }
+        const response = await fetch(path + '/clear', { method: 'POST' });
+        if (response.ok) {
+          window.location.reload();
+        } else {
+          alert('Error al limpiar logs');
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+  </script>
 </body>
 </html>`;
   }
