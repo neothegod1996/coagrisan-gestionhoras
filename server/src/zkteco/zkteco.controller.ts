@@ -96,29 +96,33 @@ export class ZktecoController {
   @Get('cdata')
   async getRequest(
     @Query('SN') serialNumber: string,
-    @Query('options') options: string,
+    @Query('pushver') pushver: string,
+    @Query('language') language: string,
     @Req() req: Request,
     @Res() res: Response
   ) {
-    this.logger.log(`Handshake received from SN: ${serialNumber}, options: ${options}`);
+    this.logger.log(`Handshake from SN: ${serialNumber}, pushver: ${pushver}, language: ${language}`);
     await this.writeLog(req, 'HANDSHAKE', `SN: ${serialNumber}`);
-    
+
     res.setHeader('Content-Type', 'text/plain');
 
-    const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
-    // Configuración ADMS más completa para asegurar sincronización
+    // Protocolo ADMS/PUSH — formato confirmado por el servidor demo Python
+    // ATTLOGStamp=0 → el dispositivo envía todos los fichajes almacenados
+    // Delay=5       → polling cada 5 segundos
     const response = [
-      'GET STAMPER',
-      `Stamp=${now}`,
-      'TransInterval=1',
-      'TransTimes=00:00;23:59',
+      `GET OPTION FROM: ${serialNumber}`,
+      'ATTLOGStamp=0',
+      'OPERLOGStamp=0',
+      'ATTPHOTOStamp=0',
       'ErrorDelay=60',
-      'Delay=30',
-      'TransFlag=1111000000',
+      'Delay=5',
+      'TransTimes=00:00;14:05',
+      'TransInterval=1',
+      'TransFlag=TransData AttLog\tOpLog',
       'TimeZone=1',
       'Realtime=1',
-      ''
-    ].join('\r\n');
+      'Encrypt=0',
+    ].join('\n');
 
     return res.status(200).send(response);
   }
